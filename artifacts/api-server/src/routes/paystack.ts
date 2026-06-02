@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, sql } from "drizzle-orm";
+import { rewardReferrerIfApplicable } from "./referrals";
 import { db, profilesTable, subscriptionsTable, transactionsTable, walletsTable, productsTable, notificationsTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 import {
@@ -591,6 +592,9 @@ async function activateSubscription({
       metadata: JSON.stringify({ plan }),
     });
   }
+
+  // Fire referral reward (async, non-blocking — don't let it fail the subscription)
+  rewardReferrerIfApplicable(userId, plan).catch(() => {});
 }
 
 async function fulfillCreditPurchase(

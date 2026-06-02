@@ -29,6 +29,7 @@ import {
   Bot,
   Package,
   MessageSquare,
+  Gift,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetProfile, useGetAiCredits, getGetProfileQueryKey } from "@workspace/api-client-react";
@@ -58,6 +59,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/teams", icon: Users, label: "Teams" },
   { href: "/dashboard/messaging", icon: MessageSquare, label: "Messaging" },
   { href: "/dashboard/social", icon: Share2, label: "Social Accounts" },
+  { href: "/dashboard/referrals", icon: Gift, label: "Referrals & Earn" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
   { href: "/dashboard/admin", icon: ShieldCheck, label: "Admin", adminOnly: true },
 ];

@@ -29,6 +29,7 @@ import CreditsPage from "@/pages/dashboard/credits";
 import AIWorkspacePage from "@/pages/dashboard/workspace";
 import MarketplacePage from "@/pages/dashboard/marketplace";
 import MessagingPage from "@/pages/dashboard/messaging";
+import ReferralsPage from "@/pages/dashboard/referrals";
 import PublicProfile from "@/pages/public-profile";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { SubscriptionGuard } from "@/components/subscription-guard";
@@ -218,6 +219,7 @@ function DashboardRoutes() {
 
         {/* Open routes */}
         <Route path="/dashboard/marketplace" component={MarketplacePage} />
+        <Route path="/dashboard/referrals" component={ReferralsPage} />
       </Switch>
     </DashboardLayout>
   );
