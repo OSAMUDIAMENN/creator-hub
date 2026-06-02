@@ -1,0 +1,6 @@
+- [Freemium gate pattern](freemium-gates.md) — SubscriptionGuard shows inline upgrade banner for free users, hard-blocks only for past_due/expired paid plans.
+- [AI setup](ai-setup.md) — Replit AI proxy unavailable (free tier); uses OPENAI_API_KEY directly. SDK v6 uses max_tokens NOT max_completion_tokens for chat completions.
+- [Object Storage](object-storage.md) — provisioned once; env vars DEFAULT_OBJECT_STORAGE_BUCKET_ID, PUBLIC_OBJECT_SEARCH_PATHS, PRIVATE_OBJECT_DIR auto-set by setupObjectStorage().
+- [AI chat fetch credentials](ai-fetch-credentials.md) — all direct fetch() calls to /api/openai/* need credentials:"include" for Clerk cookie auth to work.
+- [Profile link](profile-link.md) — public profile URL is /{username} (no /p/ prefix); settings.tsx shows window.location.origin + "/" + username.
+- [New features](new-features.md) — Marketplace, Messaging (team chat+activity), Team Accounts, Team Collaboration all built; schema tables: marketplace_listings, team_invitations, team_messages, team_activity.

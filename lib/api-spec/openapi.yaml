@@ -3,13 +3,43 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CreatorHub API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: profile
+    description: User profile operations
+  - name: links
+    description: Link-in-bio management
+  - name: products
+    description: Digital store products
+  - name: posts
+    description: Content planner posts
+  - name: analytics
+    description: Analytics and stats
+  - name: openai
+    description: OpenAI AI chat operations
+  - name: subscription
+    description: Subscription plan management
+  - name: wallet
+    description: Wallet and earnings management
+  - name: withdrawals
+    description: Payout and withdrawal requests
+  - name: ai_credits
+    description: AI credits usage tracking
+  - name: uploads
+    description: File upload management
+  - name: teams
+    description: Team and collaboration management
+  - name: admin
+    description: Admin control panel operations
+  - name: social
+    description: Social media account connections
+  - name: ai_tools
+    description: Advanced AI creator tools
 paths:
   /healthz:
     get:
@@ -24,6 +54,1085 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── PROFILE ────────────────────────────────────────────────────────────────
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get current user's profile
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: updateProfile
+      tags: [profile]
+      summary: Update current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /profile/public/{username}:
+    get:
+      operationId: getPublicProfile
+      tags: [profile]
+      summary: Get public profile by username
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public profile with links and products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicProfile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # ─── LINKS ──────────────────────────────────────────────────────────────────
+  /links:
+    get:
+      operationId: listLinks
+      tags: [links]
+      summary: List all links for current user
+      responses:
+        "200":
+          description: List of links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Link"
+    post:
+      operationId: createLink
+      tags: [links]
+      summary: Create a new link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkInput"
+      responses:
+        "201":
+          description: Created link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Link"
+
+  /links/{id}:
+    patch:
+      operationId: updateLink
+      tags: [links]
+      summary: Update a link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkUpdate"
+      responses:
+        "200":
+          description: Updated link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Link"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      operationId: deleteLink
+      tags: [links]
+      summary: Delete a link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /links/reorder:
+    patch:
+      operationId: reorderLinks
+      tags: [links]
+      summary: Reorder links by providing ordered IDs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkReorder"
+      responses:
+        "200":
+          description: Reordered links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Link"
+
+  /links/{id}/click:
+    post:
+      operationId: trackLinkClick
+      tags: [links]
+      summary: Track a link click (public endpoint)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Click tracked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  # ─── PRODUCTS ────────────────────────────────────────────────────────────────
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List all products for current user
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Create a new digital product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Get a product by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    patch:
+      operationId: updateProduct
+      tags: [products]
+      summary: Update a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Delete a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── POSTS / CONTENT PLANNER ─────────────────────────────────────────────────
+  /posts:
+    get:
+      operationId: listPosts
+      tags: [posts]
+      summary: List all content posts for current user
+      parameters:
+        - name: platform
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+    post:
+      operationId: createPost
+      tags: [posts]
+      summary: Create a new content post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /posts/{id}:
+    patch:
+      operationId: updatePost
+      tags: [posts]
+      summary: Update a content post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostUpdate"
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+    delete:
+      operationId: deletePost
+      tags: [posts]
+      summary: Delete a content post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── ANALYTICS ───────────────────────────────────────────────────────────────
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /analytics/top-links:
+    get:
+      operationId: getTopLinks
+      tags: [analytics]
+      summary: Get top performing links by clicks
+      responses:
+        "200":
+          description: Top links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LinkStat"
+
+  /analytics/revenue:
+    get:
+      operationId: getRevenueStats
+      tags: [analytics]
+      summary: Get revenue stats over time
+      responses:
+        "200":
+          description: Revenue data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RevenueStat"
+
+  # ─── OPENAI / AI ASSISTANT ────────────────────────────────────────────────────
+  /openai/conversations:
+    get:
+      operationId: listOpenaiConversations
+      tags: [openai]
+      summary: List all conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiConversation"
+    post:
+      operationId: createOpenaiConversation
+      tags: [openai]
+      summary: Create a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenaiConversationInput"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiConversation"
+
+  /openai/conversations/{id}:
+    get:
+      operationId: getOpenaiConversation
+      tags: [openai]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiConversationWithMessages"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiError"
+    delete:
+      operationId: deleteOpenaiConversation
+      tags: [openai]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /openai/conversations/{id}/messages:
+    get:
+      operationId: listOpenaiMessages
+      tags: [openai]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiMessage"
+    post:
+      operationId: sendOpenaiMessage
+      tags: [openai]
+      summary: Send a message and get a streaming AI response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenaiMessageInput"
+      responses:
+        "200":
+          description: SSE stream of assistant text chunks
+          content:
+            text/event-stream: {}
+
+  /openai/generate-content:
+    post:
+      operationId: generateContent
+      tags: [openai]
+      summary: Generate content ideas, captions, hooks, and hashtags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContentGenerationInput"
+      responses:
+        "200":
+          description: Generated content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentGenerationOutput"
+
+  # ─── SUBSCRIPTION ────────────────────────────────────────────────────────────
+  /subscription:
+    get:
+      operationId: getSubscription
+      tags: [subscription]
+      summary: Get current user's subscription
+      responses:
+        "200":
+          description: Current subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionInfo"
+
+  /subscription/plans:
+    get:
+      operationId: listPlans
+      tags: [subscription]
+      summary: List all available subscription plans
+      responses:
+        "200":
+          description: Plan list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanInfo"
+
+  /subscription/upgrade:
+    post:
+      operationId: upgradeSubscription
+      tags: [subscription]
+      summary: Upgrade or change subscription plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpgradeSubscriptionInput"
+      responses:
+        "200":
+          description: Updated subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionInfo"
+
+  # ─── WALLET ───────────────────────────────────────────────────────────────────
+  /wallet:
+    get:
+      operationId: getWallet
+      tags: [wallet]
+      summary: Get current user's wallet balance and stats
+      responses:
+        "200":
+          description: Wallet info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletInfo"
+
+  # ─── TRANSACTIONS ─────────────────────────────────────────────────────────────
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [wallet]
+      summary: List transaction history
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Transactions list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TransactionItem"
+
+  # ─── WITHDRAWALS ──────────────────────────────────────────────────────────────
+  /withdrawals:
+    get:
+      operationId: listWithdrawals
+      tags: [withdrawals]
+      summary: List withdrawal requests for current user
+      responses:
+        "200":
+          description: Withdrawal list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WithdrawalItem"
+    post:
+      operationId: createWithdrawal
+      tags: [withdrawals]
+      summary: Request a withdrawal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWithdrawalInput"
+      responses:
+        "201":
+          description: Withdrawal request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalItem"
+        "400":
+          description: Invalid request or insufficient balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  # ─── AI CREDITS ───────────────────────────────────────────────────────────────
+  /ai-credits:
+    get:
+      operationId: getAiCredits
+      tags: [ai_credits]
+      summary: Get current user's AI credits usage and balance
+      responses:
+        "200":
+          description: AI credits info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiCreditsInfo"
+
+  # ─── AI TOOLS ─────────────────────────────────────────────────────────────────
+  /ai-tools/hooks:
+    post:
+      operationId: generateHooks
+      tags: [ai_tools]
+      summary: Generate viral hooks for TikTok/Reels/Shorts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HookGeneratorInput"
+      responses:
+        "200":
+          description: Generated hooks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HookGeneratorOutput"
+
+  /ai-tools/script:
+    post:
+      operationId: generateScript
+      tags: [ai_tools]
+      summary: Generate a short-form video script
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScriptGeneratorInput"
+      responses:
+        "200":
+          description: Generated script
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScriptGeneratorOutput"
+
+  /ai-tools/thumbnail-analyze:
+    post:
+      operationId: analyzeThumbnail
+      tags: [ai_tools]
+      summary: Analyze a video title or thumbnail for virality
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ThumbnailAnalyzerInput"
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThumbnailAnalyzerOutput"
+
+  /ai-tools/trends:
+    get:
+      operationId: getTrends
+      tags: [ai_tools]
+      summary: Get trending topics by niche
+      parameters:
+        - name: niche
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trending topics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrendsOutput"
+
+  # ─── UPLOADS ──────────────────────────────────────────────────────────────────
+  /uploads:
+    get:
+      operationId: listUploads
+      tags: [uploads]
+      summary: List uploaded files for current user
+      parameters:
+        - name: folder
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of uploaded files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UploadItem"
+    post:
+      operationId: registerUpload
+      tags: [uploads]
+      summary: Register a completed upload in the database
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterUploadInput"
+      responses:
+        "201":
+          description: Registered upload info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadItem"
+
+  /uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [uploads]
+      summary: Request a presigned URL for direct file upload to storage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlInput"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResult"
+
+  /uploads/{id}:
+    delete:
+      operationId: deleteUpload
+      tags: [uploads]
+      summary: Delete an uploaded file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── TEAMS ────────────────────────────────────────────────────────────────────
+  /teams:
+    get:
+      operationId: listTeams
+      tags: [teams]
+      summary: List teams the current user belongs to
+      responses:
+        "200":
+          description: Teams list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamItem"
+    post:
+      operationId: createTeam
+      tags: [teams]
+      summary: Create a new team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeamInput"
+      responses:
+        "201":
+          description: Created team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamItem"
+
+  /teams/{id}:
+    get:
+      operationId: getTeam
+      tags: [teams]
+      summary: Get a team by ID with its members
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Team with members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamWithMembers"
+
+  /teams/{id}/members:
+    post:
+      operationId: inviteTeamMember
+      tags: [teams]
+      summary: Invite a member to a team by email
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteTeamMemberInput"
+      responses:
+        "201":
+          description: Invitation sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /teams/{id}/members/{memberId}:
+    delete:
+      operationId: removeTeamMember
+      tags: [teams]
+      summary: Remove a member from a team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Removed
+
+  # ─── SOCIAL ACCOUNTS ──────────────────────────────────────────────────────────
+  /social-accounts:
+    get:
+      operationId: listSocialAccounts
+      tags: [social]
+      summary: List connected social accounts
+      responses:
+        "200":
+          description: Connected social accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SocialAccountItem"
+
+  /social-accounts/{id}:
+    delete:
+      operationId: disconnectSocialAccount
+      tags: [social]
+      summary: Disconnect a social account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Disconnected
+
+  # ─── ADMIN ────────────────────────────────────────────────────────────────────
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [admin]
+      summary: Get platform-wide admin statistics
+      responses:
+        "200":
+          description: Admin stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List all users (admin only)
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Users list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUserItem"
+
+  /admin/withdrawals:
+    get:
+      operationId: listAdminWithdrawals
+      tags: [admin]
+      summary: List all withdrawal requests (admin only)
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: All withdrawal requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WithdrawalItem"
+
+  /admin/withdrawals/{id}/approve:
+    post:
+      operationId: approveWithdrawal
+      tags: [admin]
+      summary: Approve a withdrawal request (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminWithdrawalActionInput"
+      responses:
+        "200":
+          description: Updated withdrawal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalItem"
+
+  /admin/withdrawals/{id}/reject:
+    post:
+      operationId: rejectWithdrawal
+      tags: [admin]
+      summary: Reject a withdrawal request (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminWithdrawalActionInput"
+      responses:
+        "200":
+          description: Rejected withdrawal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WithdrawalItem"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +1143,1084 @@ components:
       required:
         - status
 
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
+
+    # ─── PROFILE ────────────────────────────────────────────────────────────
+    Profile:
+      type: object
+      properties:
+        id:
+          type: integer
+        clerkId:
+          type: string
+        name:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        bio:
+          type: ["string", "null"]
+        profileImage:
+          type: ["string", "null"]
+        whatsappNumber:
+          type: ["string", "null"]
+        theme:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clerkId
+        - name
+        - username
+        - email
+        - theme
+        - createdAt
+
+    ProfileUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        username:
+          type: string
+        bio:
+          type: string
+        profileImage:
+          type: string
+        whatsappNumber:
+          type: string
+        theme:
+          type: string
+
+    PublicProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+        bio:
+          type: ["string", "null"]
+        profileImage:
+          type: ["string", "null"]
+        whatsappNumber:
+          type: ["string", "null"]
+        theme:
+          type: string
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/Link"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+      required:
+        - id
+        - name
+        - username
+        - theme
+        - links
+        - products
+
+    # ─── LINKS ──────────────────────────────────────────────────────────────
+    Link:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        url:
+          type: string
+        icon:
+          type: ["string", "null"]
+        clicks:
+          type: integer
+        sortOrder:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - title
+        - url
+        - clicks
+        - sortOrder
+        - isActive
+        - createdAt
+
+    LinkInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        url:
+          type: string
+          minLength: 1
+        icon:
+          type: string
+      required:
+        - title
+        - url
+
+    LinkUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        icon:
+          type: string
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+
+    LinkReorder:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+      required:
+        - ids
+
+    LinkStat:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        url:
+          type: string
+        clicks:
+          type: integer
+      required:
+        - id
+        - title
+        - url
+        - clicks
+
+    # ─── PRODUCTS ────────────────────────────────────────────────────────────
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        price:
+          type: number
+        currency:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        fileUrl:
+          type: ["string", "null"]
+        salesCount:
+          type: integer
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - name
+        - price
+        - currency
+        - salesCount
+        - isActive
+        - createdAt
+
+    ProductInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        price:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+        imageUrl:
+          type: string
+        fileUrl:
+          type: string
+      required:
+        - name
+        - price
+
+    ProductUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        imageUrl:
+          type: string
+        fileUrl:
+          type: string
+        isActive:
+          type: boolean
+
+    # ─── POSTS ────────────────────────────────────────────────────────────────
+    Post:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        caption:
+          type: ["string", "null"]
+        platform:
+          type: string
+        scheduledDate:
+          type: ["string", "null"]
+          format: date-time
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - title
+        - platform
+        - status
+        - createdAt
+
+    PostInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        caption:
+          type: string
+        platform:
+          type: string
+          enum: [tiktok, instagram, youtube, facebook, twitter]
+        scheduledDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, scheduled, published]
+      required:
+        - title
+        - platform
+        - status
+
+    PostUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        caption:
+          type: string
+        platform:
+          type: string
+        scheduledDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+
+    # ─── ANALYTICS ───────────────────────────────────────────────────────────
+    AnalyticsSummary:
+      type: object
+      properties:
+        totalLinkClicks:
+          type: integer
+        totalProducts:
+          type: integer
+        totalSales:
+          type: integer
+        totalRevenue:
+          type: number
+        profileViews:
+          type: integer
+        activeLinks:
+          type: integer
+      required:
+        - totalLinkClicks
+        - totalProducts
+        - totalSales
+        - totalRevenue
+        - profileViews
+        - activeLinks
+
+    RevenueStat:
+      type: object
+      properties:
+        date:
+          type: string
+        revenue:
+          type: number
+      required:
+        - date
+        - revenue
+
+    # ─── OPENAI ──────────────────────────────────────────────────────────────
+    OpenaiConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - createdAt
+
+    OpenaiMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+
+    OpenaiConversationInput:
+      type: object
+      properties:
+        title:
+          type: string
+      required:
+        - title
+
+    OpenaiMessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+
+    OpenaiConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpenaiMessage"
+      required:
+        - id
+        - title
+        - createdAt
+        - messages
+
+    OpenaiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    ContentGenerationInput:
+      type: object
+      properties:
+        topic:
+          type: string
+        niche:
+          type: string
+        audience:
+          type: string
+        platform:
+          type: string
+      required:
+        - topic
+        - niche
+        - audience
+
+    ContentGenerationOutput:
+      type: object
+      properties:
+        ideas:
+          type: array
+          items:
+            type: string
+        captions:
+          type: array
+          items:
+            type: string
+        hooks:
+          type: array
+          items:
+            type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+      required:
+        - ideas
+        - captions
+        - hooks
+        - hashtags
+
+    # ─── SUBSCRIPTION ─────────────────────────────────────────────────────────
+    SubscriptionInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        plan:
+          type: string
+          enum: [free, pro, business]
+        status:
+          type: string
+        currentPeriodStart:
+          type: ["string", "null"]
+          format: date-time
+        currentPeriodEnd:
+          type: ["string", "null"]
+          format: date-time
+        cancelAtPeriodEnd:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - plan
+        - status
+        - cancelAtPeriodEnd
+        - createdAt
+
+    PlanInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        currency:
+          type: string
+        billingPeriod:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        aiCredits:
+          type: integer
+        maxLinks:
+          type: integer
+        maxProducts:
+          type: integer
+      required:
+        - id
+        - name
+        - price
+        - currency
+        - billingPeriod
+        - features
+        - aiCredits
+
+    UpgradeSubscriptionInput:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [free, pro, business]
+      required:
+        - plan
+
+    # ─── WALLET ───────────────────────────────────────────────────────────────
+    WalletInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        balance:
+          type: number
+        totalEarned:
+          type: number
+        totalWithdrawn:
+          type: number
+        currency:
+          type: string
+      required:
+        - id
+        - balance
+        - totalEarned
+        - totalWithdrawn
+        - currency
+
+    TransactionItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        description:
+          type: string
+        reference:
+          type: ["string", "null"]
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - amount
+        - currency
+        - description
+        - status
+        - createdAt
+
+    # ─── WITHDRAWALS ──────────────────────────────────────────────────────────
+    WithdrawalItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+        paymentMethod:
+          type: string
+        accountDetails:
+          type: string
+        adminNotes:
+          type: ["string", "null"]
+        processedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - amount
+        - currency
+        - status
+        - paymentMethod
+        - accountDetails
+        - createdAt
+
+    CreateWithdrawalInput:
+      type: object
+      properties:
+        amount:
+          type: number
+          minimum: 1
+        paymentMethod:
+          type: string
+          enum: [bank_transfer, paystack, flutterwave, crypto]
+        accountDetails:
+          type: string
+      required:
+        - amount
+        - paymentMethod
+        - accountDetails
+
+    # ─── AI CREDITS ───────────────────────────────────────────────────────────
+    AiCreditsInfo:
+      type: object
+      properties:
+        totalCredits:
+          type: integer
+        usedCredits:
+          type: integer
+        remainingCredits:
+          type: integer
+        plan:
+          type: string
+        periodMonth:
+          type: string
+      required:
+        - totalCredits
+        - usedCredits
+        - remainingCredits
+        - plan
+        - periodMonth
+
+    # ─── AI TOOLS ─────────────────────────────────────────────────────────────
+    HookGeneratorInput:
+      type: object
+      properties:
+        topic:
+          type: string
+        niche:
+          type: string
+        platform:
+          type: string
+          enum: [tiktok, instagram, youtube, shorts]
+        count:
+          type: integer
+      required:
+        - topic
+        - niche
+
+    HookGeneratorOutput:
+      type: object
+      properties:
+        hooks:
+          type: array
+          items:
+            type: string
+        platform:
+          type: string
+      required:
+        - hooks
+        - platform
+
+    ScriptGeneratorInput:
+      type: object
+      properties:
+        topic:
+          type: string
+        niche:
+          type: string
+        duration:
+          type: integer
+        platform:
+          type: string
+        tone:
+          type: string
+      required:
+        - topic
+        - niche
+
+    ScriptGeneratorOutput:
+      type: object
+      properties:
+        hook:
+          type: string
+        body:
+          type: string
+        cta:
+          type: string
+        fullScript:
+          type: string
+        estimatedDuration:
+          type: integer
+      required:
+        - hook
+        - body
+        - cta
+        - fullScript
+        - estimatedDuration
+
+    ThumbnailAnalyzerInput:
+      type: object
+      properties:
+        title:
+          type: string
+        thumbnailUrl:
+          type: string
+        niche:
+          type: string
+      required:
+        - title
+
+    ThumbnailAnalyzerOutput:
+      type: object
+      properties:
+        score:
+          type: integer
+        grade:
+          type: string
+        strengths:
+          type: array
+          items:
+            type: string
+        improvements:
+          type: array
+          items:
+            type: string
+        optimizedTitle:
+          type: string
+      required:
+        - score
+        - grade
+        - strengths
+        - improvements
+        - optimizedTitle
+
+    TrendItem:
+      type: object
+      properties:
+        topic:
+          type: string
+        niche:
+          type: string
+        engagement:
+          type: string
+        contentIdeas:
+          type: array
+          items:
+            type: string
+      required:
+        - topic
+        - niche
+        - engagement
+        - contentIdeas
+
+    TrendsOutput:
+      type: object
+      properties:
+        trends:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrendItem"
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - trends
+        - generatedAt
+
+    # ─── UPLOADS ──────────────────────────────────────────────────────────────
+    UploadItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        fileName:
+          type: string
+        originalName:
+          type: string
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+        folder:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - fileName
+        - originalName
+        - fileUrl
+        - fileType
+        - mimeType
+        - fileSize
+        - folder
+        - createdAt
+
+    # ─── TEAMS ────────────────────────────────────────────────────────────────
+    TeamItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        plan:
+          type: string
+        inviteCode:
+          type: ["string", "null"]
+        role:
+          type: string
+        memberCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - slug
+        - plan
+        - role
+        - memberCount
+        - createdAt
+
+    TeamMemberItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        joinedAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - id
+        - userId
+        - name
+        - email
+        - role
+
+    TeamWithMembers:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        plan:
+          type: string
+        inviteCode:
+          type: ["string", "null"]
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMemberItem"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - slug
+        - plan
+        - members
+        - createdAt
+
+    CreateTeamInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+        slug:
+          type: string
+          minLength: 2
+      required:
+        - name
+        - slug
+
+    InviteTeamMemberInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, editor, viewer]
+      required:
+        - email
+        - role
+
+    # ─── SOCIAL ACCOUNTS ──────────────────────────────────────────────────────
+    SocialAccountItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        platform:
+          type: string
+        platformUsername:
+          type: ["string", "null"]
+        isActive:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - platform
+        - isActive
+        - createdAt
+
+    # ─── ADMIN ────────────────────────────────────────────────────────────────
+    AdminStats:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        totalRevenue:
+          type: number
+        activeSubscriptions:
+          type: integer
+        pendingWithdrawals:
+          type: integer
+        totalAiCreditsUsed:
+          type: integer
+        newUsersThisMonth:
+          type: integer
+      required:
+        - totalUsers
+        - totalRevenue
+        - activeSubscriptions
+        - pendingWithdrawals
+        - totalAiCreditsUsed
+        - newUsersThisMonth
+
+    AdminUserItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        plan:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - username
+        - email
+        - plan
+        - createdAt
+
+    AdminWithdrawalActionInput:
+      type: object
+      properties:
+        notes:
+          type: string
+
+    RegisterUploadInput:
+      type: object
+      properties:
+        fileName:
+          type: string
+        originalName:
+          type: string
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+        folder:
+          type: string
+      required:
+        - fileName
+        - originalName
+        - fileUrl
+        - fileType
+        - mimeType
+        - fileSize
+
+    RequestUploadUrlInput:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+        folder:
+          type: string
+      required:
+        - name
+        - size
+        - contentType
+
+    UploadUrlResult:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+      required:
+        - uploadURL
+        - objectPath
