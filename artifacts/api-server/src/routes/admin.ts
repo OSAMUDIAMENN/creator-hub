@@ -12,6 +12,7 @@ import {
   adsTable,
   marketplaceListingsTable,
   platformSettingsTable,
+  notificationsTable,
 } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 
@@ -52,12 +53,15 @@ router.get("/admin/check", requireAuth(), async (req: Request, res: Response): P
 router.get("/admin/stats", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const [usersResult] = await db.select({ count: count() }).from(profilesTable);
   const [activeSubsResult] = await db.select({ count: count() }).from(subscriptionsTable).where(eq(subscriptionsTable.status, "active"));
-  const [pendingWithdrawalsResult] = await db.select({ count: count() }).from(withdrawalsTable).where(eq(withdrawalsTable.status, "pending"));
+  const [pendingWithdrawalsCountResult] = await db.select({ count: count() }).from(withdrawalsTable).where(eq(withdrawalsTable.status, "pending"));
+  const [pendingWithdrawalsAmountResult] = await db.select({ total: sum(withdrawalsTable.amount) }).from(withdrawalsTable).where(eq(withdrawalsTable.status, "pending"));
   const [aiCreditsResult] = await db.select({ total: sum(aiUsageTable.creditsUsed) }).from(aiUsageTable);
   const [walletTotals] = await db.select({ totalEarned: sum(walletsTable.totalEarned), totalWithdrawn: sum(walletsTable.totalWithdrawn) }).from(walletsTable);
   const [proSubs] = await db.select({ count: count() }).from(subscriptionsTable).where(and(eq(subscriptionsTable.plan, "pro"), eq(subscriptionsTable.status, "active")));
   const [bizSubs] = await db.select({ count: count() }).from(subscriptionsTable).where(and(eq(subscriptionsTable.plan, "business"), eq(subscriptionsTable.status, "active")));
   const [suspendedResult] = await db.select({ count: count() }).from(profilesTable).where(eq(profilesTable.isSuspended, true));
+  const [totalTransactionsResult] = await db.select({ count: count(), total: sum(transactionsTable.amount) }).from(transactionsTable).where(eq(transactionsTable.status, "completed"));
+  const [totalAdsResult] = await db.select({ count: count() }).from(adsTable).where(eq(adsTable.isActive, true));
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -69,11 +73,15 @@ router.get("/admin/stats", requireAuth(), requireAdmin, async (req: Request, res
     activeSubscriptions: activeSubsResult.count,
     proSubscriptions: proSubs.count,
     businessSubscriptions: bizSubs.count,
-    pendingWithdrawals: pendingWithdrawalsResult.count,
+    pendingWithdrawals: pendingWithdrawalsCountResult.count,
+    pendingWithdrawalsAmount: Number(pendingWithdrawalsAmountResult?.total ?? 0),
     totalAiCreditsUsed: Number(aiCreditsResult.total ?? 0),
     totalEarned: Number(walletTotals?.totalEarned ?? 0),
     totalWithdrawn: Number(walletTotals?.totalWithdrawn ?? 0),
     suspendedUsers: suspendedResult.count,
+    totalCompletedTransactions: totalTransactionsResult.count,
+    totalTransactionVolume: Number(totalTransactionsResult.total ?? 0),
+    activeAds: totalAdsResult.count,
   });
 });
 
@@ -114,6 +122,10 @@ router.get("/admin/users", requireAuth(), requireAdmin, async (req: Request, res
     allProfiles.map(async (p) => {
       const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, p.id));
       const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, p.id));
+      const [pendingAmt] = await db
+        .select({ total: sum(withdrawalsTable.amount) })
+        .from(withdrawalsTable)
+        .where(and(eq(withdrawalsTable.userId, p.id), eq(withdrawalsTable.status, "pending")));
       return {
         id: p.id,
         name: p.name,
@@ -126,6 +138,7 @@ router.get("/admin/users", requireAuth(), requireAdmin, async (req: Request, res
         subStatus: sub?.status ?? "active",
         balance: wallet ? Number(wallet.balance) : 0,
         totalEarned: wallet ? Number(wallet.totalEarned) : 0,
+        pendingWithdrawalsAmount: Number(pendingAmt?.total ?? 0),
         createdAt: p.createdAt.toISOString(),
       };
     })
@@ -375,6 +388,31 @@ router.patch("/admin/settings", requireAuth(), requireAdmin, async (req: Request
     }
   }
   res.json({ success: true });
+});
+
+// ── Broadcast Notifications ───────────────────────────────────────────────────
+router.post("/admin/notifications/broadcast", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const { title, message, type } = req.body as { title?: string; message?: string; type?: string };
+  if (!title || !message) { res.status(400).json({ error: "title and message are required" }); return; }
+
+  const notifType = type ?? "announcement";
+  const allProfiles = await db.select({ id: profilesTable.id }).from(profilesTable);
+
+  let sent = 0;
+  for (const p of allProfiles) {
+    try {
+      await db.insert(notificationsTable).values({
+        userId: p.id,
+        type: notifType,
+        title,
+        message,
+        data: JSON.stringify({ broadcast: true }),
+      });
+      sent++;
+    } catch {}
+  }
+
+  res.json({ success: true, sent });
 });
 
 export default router;

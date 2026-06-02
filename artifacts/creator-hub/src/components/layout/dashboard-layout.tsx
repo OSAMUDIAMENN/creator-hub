@@ -62,6 +62,14 @@ const NAV_ITEMS = [
   { href: "/dashboard/admin", icon: ShieldCheck, label: "Admin", adminOnly: true },
 ];
 
+const BOTTOM_NAV = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
+  { href: "/dashboard/links", icon: Link2, label: "Links" },
+  { href: "/dashboard/store", icon: ShoppingBag, label: "Store" },
+  { href: "/dashboard/wallet", icon: Wallet, label: "Wallet" },
+  { href: "/dashboard/analytics", icon: BarChart2, label: "Analytics" },
+];
+
 const PLAN_ICONS: Record<string, React.ElementType> = {
   free: Zap,
   pro: Crown,
@@ -256,6 +264,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div className="flex items-center gap-1">
             <NotificationsBell />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={toggleTheme}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-9 w-9">
@@ -273,13 +289,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SubscriptionRenewalBanner />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-8">
             {children}
           </div>
         </main>
-      </div>
 
+        {/* Mobile Bottom Navigation */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-background/95 backdrop-blur-sm border-t border-border flex items-stretch h-16">
+          {BOTTOM_NAV.map((item) => {
+            const isActive = location === item.href || (item.href !== "/dashboard" && location.startsWith(item.href));
+            return (
+              <Link key={item.href} href={item.href} className="flex-1">
+                <div className={cn(
+                  "flex flex-col items-center justify-center h-full gap-1 px-1 transition-colors",
+                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                )}>
+                  <item.icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
+                  <span className={cn("text-[10px] font-medium leading-none", isActive && "font-bold")}>{item.label}</span>
+                  {isActive && <div className="absolute bottom-0 h-0.5 w-8 bg-primary rounded-t-full" />}
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
     </div>
   );
 }

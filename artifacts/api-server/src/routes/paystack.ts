@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, profilesTable, subscriptionsTable, transactionsTable, walletsTable, productsTable } from "@workspace/db";
+import { db, profilesTable, subscriptionsTable, transactionsTable, walletsTable, productsTable, notificationsTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 import {
   initializeTransaction,
@@ -169,7 +169,7 @@ router.post("/paystack/product/:id/checkout", async (req: Request, res: Response
   const productId = parseInt(req.params.id, 10);
   if (isNaN(productId)) { res.status(400).json({ error: "Invalid product ID" }); return; }
 
-  const { email } = req.body as { email?: string };
+  const { email, buyerName } = req.body as { email?: string; buyerName?: string };
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     res.status(400).json({ error: "Valid email is required" }); return;
   }
@@ -190,6 +190,7 @@ router.post("/paystack/product/:id/checkout", async (req: Request, res: Response
 
   const amountKobo = Math.round(Number(product.price) * 100);
   const reference = generateReference(`PROD-${productId}`);
+  const resolvedBuyerName = buyerName?.trim() || "Customer";
 
   const tx = await initializeTransaction({
     email,
@@ -201,6 +202,7 @@ router.post("/paystack/product/:id/checkout", async (req: Request, res: Response
       productId,
       creatorUserId: creator.id,
       buyerEmail: email,
+      buyerName: resolvedBuyerName,
     },
   });
 
@@ -221,9 +223,9 @@ router.get("/paystack/product-callback", async (req: Request, res: Response): Pr
       res.redirect(`${baseFrontendUrl}/product/download?error=payment_failed`); return;
     }
 
-    const meta = tx.metadata as { productId?: number; creatorUserId?: number };
+    const meta = tx.metadata as { productId?: number; creatorUserId?: number; buyerEmail?: string; buyerName?: string };
     if (meta?.productId && meta?.creatorUserId) {
-      await fulfillProductPurchase(meta.productId, meta.creatorUserId, tx.amount, reference);
+      await fulfillProductPurchase(meta.productId, meta.creatorUserId, tx.amount, reference, meta.buyerEmail, meta.buyerName);
     }
 
     res.redirect(`${baseFrontendUrl}/product/download?ref=${encodeURIComponent(reference)}`);
@@ -295,15 +297,11 @@ router.post("/paystack/verify", requireAuth(), async (req: Request, res: Respons
 });
 
 // ─── Webhook (Paystack → server) ──────────────────────────────────────────────
-// NOTE: This route receives raw bytes via express.raw() configured in app.ts.
-// The original body is preserved as req.rawBody (string) for HMAC verification.
-// Never re-serialize req.body for signature checks — JSON key order can change.
 
 router.post("/paystack/webhook", async (req: Request, res: Response): Promise<void> => {
   const signature = req.headers["x-paystack-signature"] as string | undefined;
   const rawBody = (req as any).rawBody as string | undefined;
 
-  // Always acknowledge quickly — Paystack retries on non-2xx responses
   res.json({ received: true });
 
   if (!rawBody || !signature) {
@@ -322,7 +320,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
   try {
     switch (event.event) {
 
-      // ── One-off charge (subscription first payment or product sale) ──────────
       case "charge.success": {
         const data = event.data;
         const meta = data?.metadata as {
@@ -332,6 +329,8 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
           credits?: number;
           productId?: number;
           creatorUserId?: number;
+          buyerEmail?: string;
+          buyerName?: string;
         } | undefined;
 
         if (meta?.type === "subscription" && meta.userId && meta.plan) {
@@ -344,7 +343,7 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
         }
 
         if (meta?.type === "product_purchase" && meta.productId && meta.creatorUserId) {
-          await fulfillProductPurchase(meta.productId, meta.creatorUserId, data.amount, data.reference);
+          await fulfillProductPurchase(meta.productId, meta.creatorUserId, data.amount, data.reference, meta.buyerEmail, meta.buyerName);
         }
 
         if (meta?.type === "credit_purchase" && meta.userId && meta.credits) {
@@ -353,7 +352,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
         break;
       }
 
-      // ── Paystack subscription created (captures subscription + customer codes) ─
       case "subscription.create": {
         const data = event.data;
         const customerCode = data?.customer?.customer_code as string | undefined;
@@ -362,7 +360,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
 
         if (!customerCode || !subscriptionCode) break;
 
-        // Match plan code to our plan names
         const plan = planCode
           ? (Object.entries(PLAN_PRICES).find(([k]) => planCode.toLowerCase().includes(k))?.[0] ?? null)
           : null;
@@ -384,7 +381,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
         break;
       }
 
-      // ── Recurring renewal invoice paid ────────────────────────────────────────
       case "invoice.update": {
         const data = event.data;
         if (data?.status !== "success") break;
@@ -395,7 +391,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
 
         if (!customerCode || !reference) break;
 
-        // Find the subscription by customer code or subscription code
         const [sub] = await db
           .select({ id: subscriptionsTable.id, userId: subscriptionsTable.userId, plan: subscriptionsTable.plan })
           .from(subscriptionsTable)
@@ -410,7 +405,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
           break;
         }
 
-        // Check idempotency — don't extend if this reference was already applied
         const [existing] = await db
           .select({ id: transactionsTable.id, status: transactionsTable.status })
           .from(transactionsTable)
@@ -421,7 +415,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
           break;
         }
 
-        // Extend the subscription period by one month from current end (or now)
         const [currentSub] = await db
           .select()
           .from(subscriptionsTable)
@@ -444,7 +437,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
           })
           .where(eq(subscriptionsTable.id, sub.id));
 
-        // Record the renewal transaction (idempotent)
         const amountNgn = (data?.amount ?? 0) / 100;
         if (existing) {
           await db
@@ -468,7 +460,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
         break;
       }
 
-      // ── Renewal payment failed ─────────────────────────────────────────────
       case "invoice.payment_failed": {
         const data = event.data;
         const customerCode = data?.customer?.customer_code as string | undefined;
@@ -495,7 +486,6 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
         break;
       }
 
-      // ── User cancelled or Paystack disabled subscription ──────────────────
       case "subscription.disable":
       case "subscription.not_renew": {
         const data = event.data;
@@ -546,7 +536,6 @@ async function activateSubscription({
   paystackCustomerCode?: string;
   paystackSubscriptionCode?: string;
 }) {
-  // Idempotency: skip if this reference was already fully applied
   const [existingTx] = await db
     .select({ id: transactionsTable.id, status: transactionsTable.status })
     .from(transactionsTable)
@@ -613,7 +602,6 @@ async function fulfillCreditPurchase(
   const { aiUsageTable } = await import("@workspace/db");
   const { getCurrentPeriodMonth } = await import("./ai_credits");
 
-  // Idempotency check
   const [existing] = await db
     .select({ id: transactionsTable.id, status: transactionsTable.status })
     .from(transactionsTable)
@@ -653,8 +641,9 @@ async function fulfillProductPurchase(
   creatorUserId: number,
   amountKobo: number,
   reference: string,
+  buyerEmail?: string,
+  buyerName?: string,
 ) {
-  // Idempotency check
   const [existing] = await db
     .select({ id: transactionsTable.id, status: transactionsTable.status })
     .from(transactionsTable)
@@ -694,7 +683,7 @@ async function fulfillProductPurchase(
   if (existing) {
     await db
       .update(transactionsTable)
-      .set({ status: "completed", metadata: JSON.stringify({ productId }) })
+      .set({ status: "completed", metadata: JSON.stringify({ productId, buyerEmail, buyerName }) })
       .where(eq(transactionsTable.reference, reference));
   } else {
     await db.insert(transactionsTable).values({
@@ -705,9 +694,20 @@ async function fulfillProductPurchase(
       description: `Sale: ${product?.name ?? "Product"} (after ${PLATFORM_FEE_PERCENT}% platform fee)`,
       reference,
       status: "completed",
-      metadata: JSON.stringify({ productId }),
+      metadata: JSON.stringify({ productId, buyerEmail, buyerName }),
     });
   }
+
+  // Notify the creator about the new sale with buyer details
+  const buyerDisplay = buyerName ? `${buyerName}` : "Someone";
+  const emailDisplay = buyerEmail ? ` (${buyerEmail})` : "";
+  await db.insert(notificationsTable).values({
+    userId: creatorUserId,
+    type: "sale",
+    title: "🎉 New sale!",
+    message: `${buyerDisplay}${emailDisplay} just bought "${product?.name ?? "your product"}" for ₦${amountNgn.toLocaleString("en-NG")}. You earned ₦${creatorEarnings.toLocaleString("en-NG", { maximumFractionDigits: 2 })}.`,
+    data: JSON.stringify({ productId, buyerEmail, buyerName, amount: creatorEarnings, reference }),
+  });
 }
 
 export default router;

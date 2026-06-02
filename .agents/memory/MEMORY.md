@@ -4,3 +4,4 @@
 - [AI chat fetch credentials](ai-fetch-credentials.md) — all direct fetch() calls to /api/openai/* need credentials:"include" for Clerk cookie auth to work.
 - [Profile link](profile-link.md) — public profile URL is /{username} (no /p/ prefix); settings.tsx shows window.location.origin + "/" + username.
 - [New features](new-features.md) — Marketplace, Messaging (team chat+activity), Team Accounts, Team Collaboration all built; schema tables: marketplace_listings, team_invitations, team_messages, team_activity.
+- [Admin + Ad system](admin-ad-system.md) — ad earnings stored in kobo, wallet balance in NGN (÷100); admin has 9 tabs incl. Notifications broadcast, logo upload via object-storage request-url flow.

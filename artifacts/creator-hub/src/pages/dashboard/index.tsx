@@ -27,6 +27,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -122,6 +123,9 @@ export default function DashboardHome() {
           iconBg="bg-orange-500/10"
         />
       </div>
+
+      {/* Sponsored Ads */}
+      <DashboardAdBanner count={2} layout="row" />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* AI Credits Card */}

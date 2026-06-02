@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +23,7 @@ import {
   Search, Crown, Building2, RefreshCw, BarChart2, Settings, Megaphone, Eye, EyeOff,
   Trash2, Ban, UserCheck, TrendingUp, Package, AlertTriangle, Globe, Image,
   ArrowUpRight, Wallet, Activity, HardDrive, Plus, Edit, ToggleLeft, ToggleRight,
-  ArrowDownCircle,
+  ArrowDownCircle, Bell, Send, Upload, Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,8 +42,11 @@ async function api<T = unknown>(path: string, opts?: RequestInit): Promise<T> {
 
 type AdminStats = {
   totalUsers: number; newUsersThisMonth: number; activeSubscriptions: number;
-  proSubscriptions: number; businessSubscriptions: number; pendingWithdrawals: number;
-  totalAiCreditsUsed: number; totalEarned: number; totalWithdrawn: number; suspendedUsers: number;
+  proSubscriptions: number; businessSubscriptions: number;
+  pendingWithdrawals: number; pendingWithdrawalsAmount: number;
+  totalAiCreditsUsed: number; totalEarned: number; totalWithdrawn: number;
+  suspendedUsers: number; totalCompletedTransactions: number;
+  totalTransactionVolume: number; activeAds: number;
 };
 type Revenue = {
   subscriptionRevenue: number; proSubscribers: number; businessSubscribers: number;
@@ -52,7 +55,8 @@ type Revenue = {
 };
 type AdminUser = {
   id: number; name: string; username: string; email: string; role: string; isAdmin: boolean;
-  isSuspended: boolean; plan: string; subStatus: string; balance: number; totalEarned: number; createdAt: string;
+  isSuspended: boolean; plan: string; subStatus: string; balance: number; totalEarned: number;
+  pendingWithdrawalsAmount: number; createdAt: string;
 };
 type Withdrawal = {
   id: number; userId: number; amount: number; currency: string; status: string; paymentMethod: string;
@@ -81,9 +85,9 @@ const STATUS_COLORS: Record<string, string> = {
   processing: "bg-purple-500/10 text-purple-600 border-purple-500/20",
 };
 
-function StatCard({ icon: Icon, label, value, sub, color, trend }: { icon: React.ElementType; label: string; value: string | number; sub?: string; color?: string; trend?: string }) {
+function StatCard({ icon: Icon, label, value, sub, color, trend, accent }: { icon: React.ElementType; label: string; value: string | number; sub?: string; color?: string; trend?: string; accent?: string }) {
   return (
-    <Card className="relative overflow-hidden">
+    <Card className={cn("relative overflow-hidden transition-shadow hover:shadow-md", accent && `border-l-4 ${accent}`)}>
       <CardHeader className="pb-2">
         <CardDescription className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide">
           <Icon className={`h-4 w-4 ${color ?? "text-muted-foreground"}`} />
@@ -110,18 +114,74 @@ function fmtBytes(b: number) {
 
 // ── Overview Tab ─────────────────────────────────────────────────────────────
 function OverviewTab({ stats }: { stats: AdminStats | undefined }) {
-  if (!stats) return <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28" />)}</div>;
+  const qc = useQueryClient();
+  if (!stats) return <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(10)].map((_, i) => <Skeleton key={i} className="h-28" />)}</div>;
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Platform Overview</h3>
+        <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["/admin/stats"] })}>
+          <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
+        </Button>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={Users} label="Total Users" value={fmt(stats.totalUsers)} sub={`+${stats.newUsersThisMonth} this month`} trend={`${stats.newUsersThisMonth} new`} />
-        <StatCard icon={CreditCard} label="Active Subs" value={fmt(stats.activeSubscriptions)} sub={`${stats.proSubscriptions} Pro · ${stats.businessSubscriptions} Business`} color="text-primary" />
-        <StatCard icon={Wallet} label="Total Earned" value={fmtNGN(stats.totalEarned)} sub={`${fmtNGN(stats.totalWithdrawn)} withdrawn`} color="text-green-600" />
-        <StatCard icon={ArrowDownCircle} label="Pending Withdrawals" value={fmt(stats.pendingWithdrawals)} color="text-amber-600" />
-        <StatCard icon={Zap} label="AI Credits Used" value={fmt(stats.totalAiCreditsUsed)} color="text-purple-600" />
-        <StatCard icon={Ban} label="Suspended Users" value={fmt(stats.suspendedUsers)} color="text-red-500" />
+        <StatCard icon={Users} label="Total Users" value={fmt(stats.totalUsers)} sub={`+${stats.newUsersThisMonth} this month`} trend={`${stats.newUsersThisMonth} new`} accent="border-l-blue-500" />
+        <StatCard icon={CreditCard} label="Active Subs" value={fmt(stats.activeSubscriptions)} sub={`${stats.proSubscriptions} Pro · ${stats.businessSubscriptions} Business`} color="text-primary" accent="border-l-primary" />
+        <StatCard icon={Wallet} label="Total Earned" value={fmtNGN(stats.totalEarned)} sub={`${fmtNGN(stats.totalWithdrawn)} withdrawn`} color="text-green-600" accent="border-l-green-500" />
+        <StatCard icon={ArrowDownCircle} label="Pending Payouts" value={fmt(stats.pendingWithdrawals)} sub={fmtNGN(stats.pendingWithdrawalsAmount)} color="text-amber-600" accent="border-l-amber-500" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard icon={Zap} label="AI Credits Used" value={fmt(stats.totalAiCreditsUsed)} color="text-purple-600" accent="border-l-purple-500" />
+        <StatCard icon={Ban} label="Suspended Users" value={fmt(stats.suspendedUsers)} color="text-red-500" accent="border-l-red-400" />
         <StatCard icon={Crown} label="Pro Subscribers" value={fmt(stats.proSubscriptions)} color="text-primary" />
         <StatCard icon={Building2} label="Business Subs" value={fmt(stats.businessSubscriptions)} color="text-amber-500" />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatCard icon={TrendingUp} label="Completed Transactions" value={fmt(stats.totalCompletedTransactions)} color="text-blue-600" />
+        <StatCard icon={DollarSign} label="Transaction Volume" value={fmtNGN(stats.totalTransactionVolume)} color="text-green-600" />
+        <StatCard icon={Megaphone} label="Active Ads" value={fmt(stats.activeAds)} color="text-orange-500" />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Subscription Mix</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {[
+              { label: "Free users", value: stats.totalUsers - stats.activeSubscriptions, total: stats.totalUsers, color: "bg-muted-foreground/30" },
+              { label: "Pro subscribers", value: stats.proSubscriptions, total: stats.totalUsers, color: "bg-primary" },
+              { label: "Business subscribers", value: stats.businessSubscriptions, total: stats.totalUsers, color: "bg-amber-500" },
+            ].map((item) => (
+              <div key={item.label} className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">{item.label}</span>
+                  <span className="font-semibold">{fmt(item.value)}</span>
+                </div>
+                <Progress value={item.total > 0 ? (item.value / item.total) * 100 : 0} className={cn("h-1.5 [&>div]:", item.color)} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Wallet Summary</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {[
+              { label: "Total earned by creators", value: stats.totalEarned, color: "bg-green-500" },
+              { label: "Total withdrawn", value: stats.totalWithdrawn, color: "bg-blue-500" },
+              { label: "Pending withdrawals", value: stats.pendingWithdrawalsAmount, color: "bg-amber-500" },
+            ].map((item) => (
+              <div key={item.label} className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">{item.label}</span>
+                  <span className="font-semibold">{fmtNGN(item.value)}</span>
+                </div>
+                <Progress value={stats.totalEarned > 0 ? (item.value / stats.totalEarned) * 100 : 0} className={cn("h-1.5 [&>div]:", item.color)} />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -167,80 +227,88 @@ function UsersTab() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? <div className="p-4 space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14" />)}</div> : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((u) => (
-                  <TableRow key={u.id} className={u.isSuspended ? "opacity-60 bg-red-500/5" : ""}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium text-sm">{u.name}</p>
-                        <p className="text-xs text-muted-foreground">@{u.username}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={PLAN_COLORS[u.plan] as any ?? "secondary"} className="capitalize text-xs">{u.plan}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Select value={u.role} onValueChange={(role) => patchUser.mutate({ id: u.id, updates: { role } })}>
-                        <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="creator">Creator</SelectItem>
-                          <SelectItem value="moderator">Moderator</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">{fmtNGN(u.balance)}</TableCell>
-                    <TableCell>
-                      {u.isSuspended
-                        ? <Badge variant="destructive" className="text-xs">Suspended</Badge>
-                        : u.isAdmin
-                          ? <Badge className="text-xs bg-primary/10 text-primary">Admin</Badge>
-                          : <Badge variant="outline" className="text-xs text-green-600 border-green-500/30">Active</Badge>
-                      }
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1 justify-end">
-                        <Button size="sm" variant="outline" className="text-xs h-7"
-                          onClick={() => setOverrideTarget(u)}>
-                          <CreditCard className="h-3 w-3 mr-1" /> Plan
-                        </Button>
-                        <Button size="sm" variant="outline" className={cn("text-xs h-7", u.isSuspended ? "text-green-600" : "text-amber-600")}
-                          onClick={() => patchUser.mutate({ id: u.id, updates: { isSuspended: !u.isSuspended } })}>
-                          {u.isSuspended ? <><UserCheck className="h-3 w-3 mr-1" />Restore</> : <><Ban className="h-3 w-3 mr-1" />Suspend</>}
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-xs h-7 text-destructive"
-                          onClick={() => setConfirmDelete(u)}>
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead>Pending Payout</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((u) => (
+                    <TableRow key={u.id} className={u.isSuspended ? "opacity-60 bg-red-500/5" : ""}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium text-sm">{u.name}</p>
+                          <p className="text-xs text-muted-foreground">@{u.username}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={PLAN_COLORS[u.plan] as any ?? "secondary"} className="capitalize text-xs">{u.plan}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Select value={u.role} onValueChange={(role) => patchUser.mutate({ id: u.id, updates: { role } })}>
+                          <SelectTrigger className="h-7 text-xs w-[110px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="creator">Creator</SelectItem>
+                            <SelectItem value="moderator">Moderator</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{fmtNGN(u.balance)}</TableCell>
+                      <TableCell className="text-sm">
+                        {u.pendingWithdrawalsAmount > 0 ? (
+                          <span className="text-amber-600 font-semibold">{fmtNGN(u.pendingWithdrawalsAmount)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {u.isSuspended
+                          ? <Badge variant="destructive" className="text-xs">Suspended</Badge>
+                          : u.isAdmin
+                            ? <Badge className="text-xs bg-primary/10 text-primary">Admin</Badge>
+                            : <Badge variant="outline" className="text-xs text-green-600 border-green-500/30">Active</Badge>
+                        }
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 justify-end">
+                          <Button size="sm" variant="outline" className="text-xs h-7"
+                            onClick={() => setOverrideTarget(u)}>
+                            <CreditCard className="h-3 w-3 mr-1" /> Plan
+                          </Button>
+                          <Button size="sm" variant="outline" className={cn("text-xs h-7", u.isSuspended ? "text-green-600" : "text-amber-600")}
+                            onClick={() => patchUser.mutate({ id: u.id, updates: { isSuspended: !u.isSuspended } })}>
+                            {u.isSuspended ? <><UserCheck className="h-3 w-3 mr-1" />Restore</> : <><Ban className="h-3 w-3 mr-1" />Suspend</>}
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-xs h-7 text-destructive"
+                            onClick={() => setConfirmDelete(u)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Subscription Override Dialog */}
       <SubscriptionOverrideDialog target={overrideTarget} onClose={() => setOverrideTarget(null)} onSuccess={() => { setOverrideTarget(null); qc.invalidateQueries({ queryKey: ["/admin/users"] }); }} />
 
-      {/* Delete Confirm */}
       <Dialog open={!!confirmDelete} onOpenChange={(o) => { if (!o) setConfirmDelete(null); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -404,60 +472,62 @@ function WithdrawalsTab() {
             : withdrawals.length === 0
               ? <div className="text-center py-14 text-muted-foreground"><CheckCircle className="h-10 w-10 mx-auto mb-3 opacity-30" /><p>No withdrawals found.</p></div>
               : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Creator</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Account</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {withdrawals.map((w) => (
-                      <TableRow key={w.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{w.userName}</p>
-                            <p className="text-xs text-muted-foreground">{w.userEmail}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-bold">{fmtNGN(w.amount)}</TableCell>
-                        <TableCell className="text-sm capitalize">{w.paymentMethod?.replace(/_/g, " ")}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">{parseAccount(w.accountDetails)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn("text-xs", STATUS_COLORS[w.status] ?? "")}>{w.status}</Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{new Date(w.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1 justify-end flex-wrap">
-                            {w.status === "pending" && (
-                              <>
-                                <Button size="sm" variant="outline" className="text-xs h-7 text-green-600 border-green-500/30"
-                                  onClick={() => { setNoteTarget(w); setNoteText(""); }}>
-                                  <CheckCircle className="h-3 w-3 mr-1" /> Approve
-                                </Button>
-                                <Button size="sm" variant="outline" className="text-xs h-7 text-destructive"
-                                  onClick={() => updateStatus.mutate({ id: w.id, status: "rejected" })}>
-                                  <XCircle className="h-3 w-3 mr-1" /> Reject
-                                </Button>
-                              </>
-                            )}
-                            {w.status === "approved" && (
-                              <Button size="sm" variant="outline" className="text-xs h-7 text-blue-600"
-                                onClick={() => updateStatus.mutate({ id: w.id, status: "completed" })}>
-                                Mark Paid
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Creator</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Account</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {withdrawals.map((w) => (
+                        <TableRow key={w.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{w.userName}</p>
+                              <p className="text-xs text-muted-foreground">{w.userEmail}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-bold">{fmtNGN(w.amount)}</TableCell>
+                          <TableCell className="text-sm capitalize">{w.paymentMethod?.replace(/_/g, " ")}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">{parseAccount(w.accountDetails)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={cn("text-xs", STATUS_COLORS[w.status] ?? "")}>{w.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{new Date(w.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1 justify-end flex-wrap">
+                              {w.status === "pending" && (
+                                <>
+                                  <Button size="sm" variant="outline" className="text-xs h-7 text-green-600 border-green-500/30"
+                                    onClick={() => { setNoteTarget(w); setNoteText(""); }}>
+                                    <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="text-xs h-7 text-destructive"
+                                    onClick={() => updateStatus.mutate({ id: w.id, status: "rejected" })}>
+                                    <XCircle className="h-3 w-3 mr-1" /> Reject
+                                  </Button>
+                                </>
+                              )}
+                              {w.status === "approved" && (
+                                <Button size="sm" variant="outline" className="text-xs h-7 text-blue-600"
+                                  onClick={() => updateStatus.mutate({ id: w.id, status: "completed" })}>
+                                  Mark Paid
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
         </CardContent>
       </Card>
@@ -526,7 +596,7 @@ function AdsTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <p className="text-sm text-muted-foreground">Manage sponsored ads and Google AdSense slots shown on creator profiles.</p>
+        <p className="text-sm text-muted-foreground">Manage sponsored ads shown on creator profiles. Each impression credits the creator's wallet.</p>
         <Button onClick={() => { setEditId(null); setForm(emptyAd); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" /> New Ad Slot</Button>
       </div>
 
@@ -545,7 +615,7 @@ function AdsTab() {
                           {ad.isActive ? <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/20">Active</Badge> : <Badge variant="outline" className="text-xs">Inactive</Badge>}
                         </div>
                         <p className="text-xs text-muted-foreground">{ad.advertiserName}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{ad.earningsPerImpression} kobo / impression · {ad.ctaText}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{ad.earningsPerImpression} kobo (₦{(ad.earningsPerImpression / 100).toFixed(2)}) / impression · {ad.ctaText}</p>
                       </div>
                       <div className="flex gap-1">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => toggleAd.mutate({ id: ad.id, isActive: !ad.isActive })}>
@@ -576,7 +646,11 @@ function AdsTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label>Image URL</Label><Input value={form.imageUrl} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))} placeholder="https://..." /></div>
-              <div className="space-y-1.5"><Label>Kobo / Impression</Label><Input type="number" value={form.earningsPerImpression} onChange={(e) => setForm((f) => ({ ...f, earningsPerImpression: e.target.value }))} /></div>
+              <div className="space-y-1.5">
+                <Label>Kobo / Impression</Label>
+                <Input type="number" value={form.earningsPerImpression} onChange={(e) => setForm((f) => ({ ...f, earningsPerImpression: e.target.value }))} />
+                <p className="text-[10px] text-muted-foreground">= ₦{(parseInt(form.earningsPerImpression) / 100 || 0).toFixed(2)} per view</p>
+              </div>
             </div>
             <div className="flex items-center gap-2"><Switch checked={form.isActive} onCheckedChange={(v) => setForm((f) => ({ ...f, isActive: v }))} /><Label>Active</Label></div>
           </div>
@@ -621,7 +695,7 @@ function AnalyticsTab() {
         <Card>
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><Zap className="h-4 w-4" /> Top AI Tools</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            {(analytics.aiByTool ?? []).slice(0, 6).map((t, i) => {
+            {(analytics.aiByTool ?? []).slice(0, 6).map((t) => {
               const max = analytics.aiByTool[0]?.credits ?? 1;
               return (
                 <div key={t.tool} className="space-y-0.5">
@@ -675,38 +749,40 @@ function ModerationTab() {
         <Card>
           <CardContent className="p-0">
             {loadingListings ? <div className="p-4 space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-14" />)}</div> : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Listing</TableHead>
-                    <TableHead>Seller</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead>Orders</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {listings.map((l) => (
-                    <TableRow key={l.id}>
-                      <TableCell className="font-medium text-sm">{l.title}</TableCell>
-                      <TableCell><p className="text-sm">{l.sellerName}</p><p className="text-xs text-muted-foreground">{l.sellerEmail}</p></TableCell>
-                      <TableCell className="text-sm capitalize text-muted-foreground">{l.category.replace(/_/g, " ")}</TableCell>
-                      <TableCell className="text-sm font-medium">{fmtNGN(l.price)}</TableCell>
-                      <TableCell className="text-sm">{l.totalOrders}</TableCell>
-                      <TableCell>{l.isActive ? <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/20">Active</Badge> : <Badge variant="outline" className="text-xs">Inactive</Badge>}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 justify-end">
-                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => toggleListing.mutate({ id: l.id, isActive: !l.isActive })}>
-                            {l.isActive ? <><EyeOff className="h-3 w-3 mr-1" />Deactivate</> : <><Eye className="h-3 w-3 mr-1" />Activate</>}
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Listing</TableHead>
+                      <TableHead>Seller</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Orders</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {listings.map((l) => (
+                      <TableRow key={l.id}>
+                        <TableCell className="font-medium text-sm">{l.title}</TableCell>
+                        <TableCell><p className="text-sm">{l.sellerName}</p><p className="text-xs text-muted-foreground">{l.sellerEmail}</p></TableCell>
+                        <TableCell className="text-sm capitalize text-muted-foreground">{l.category.replace(/_/g, " ")}</TableCell>
+                        <TableCell className="text-sm font-medium">{fmtNGN(l.price)}</TableCell>
+                        <TableCell className="text-sm">{l.totalOrders}</TableCell>
+                        <TableCell>{l.isActive ? <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/20">Active</Badge> : <Badge variant="outline" className="text-xs">Inactive</Badge>}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 justify-end">
+                            <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => toggleListing.mutate({ id: l.id, isActive: !l.isActive })}>
+                              {l.isActive ? <><EyeOff className="h-3 w-3 mr-1" />Deactivate</> : <><Eye className="h-3 w-3 mr-1" />Activate</>}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -716,42 +792,124 @@ function ModerationTab() {
         <Card>
           <CardContent className="p-0">
             {loadingUploads ? <div className="p-4 space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div> : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>File</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Folder</TableHead>
-                    <TableHead>Uploaded</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {uploads.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="text-sm max-w-[180px] truncate font-medium">{u.originalName}</TableCell>
-                      <TableCell><p className="text-sm">{u.userName}</p><p className="text-xs text-muted-foreground">{u.userEmail}</p></TableCell>
-                      <TableCell className="text-xs"><Badge variant="outline">{u.fileType}</Badge></TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{fmtBytes(u.fileSize)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground capitalize">{u.folder}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 justify-end">
-                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => window.open(u.fileUrl, "_blank")}><Eye className="h-3 w-3 mr-1" />View</Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => deleteUpload.mutate(u.id)}><Trash2 className="h-3 w-3" /></Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>File</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Folder</TableHead>
+                      <TableHead>Uploaded</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {uploads.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell className="text-sm max-w-[180px] truncate font-medium">{u.originalName}</TableCell>
+                        <TableCell><p className="text-sm">{u.userName}</p><p className="text-xs text-muted-foreground">{u.userEmail}</p></TableCell>
+                        <TableCell className="text-xs"><Badge variant="outline">{u.fileType}</Badge></TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{fmtBytes(u.fileSize)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground capitalize">{u.folder}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1 justify-end">
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => window.open(u.fileUrl, "_blank")}><Eye className="h-3 w-3 mr-1" />View</Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => deleteUpload.mutate(u.id)}><Trash2 className="h-3 w-3" /></Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
       </TabsContent>
     </Tabs>
+  );
+}
+
+// ── Notifications Tab ──────────────────────────────────────────────────────────
+function NotificationsTab() {
+  const { toast } = useToast();
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [type, setType] = useState("announcement");
+  const [sending, setSending] = useState(false);
+
+  const handleBroadcast = async () => {
+    if (!title.trim() || !message.trim()) {
+      toast({ title: "Title and message are required", variant: "destructive" }); return;
+    }
+    setSending(true);
+    try {
+      const result = await api<{ success: boolean; sent: number }>("/admin/notifications/broadcast", {
+        method: "POST",
+        body: JSON.stringify({ title: title.trim(), message: message.trim(), type }),
+      });
+      toast({ title: `Notification sent to ${result.sent} creators!` });
+      setTitle("");
+      setMessage("");
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="max-w-xl space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Bell className="h-4 w-4" /> Broadcast Notification
+          </CardTitle>
+          <CardDescription>
+            Send a notification to all creators on the platform. It will appear in their notification bell.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Notification Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="announcement">📢 Announcement</SelectItem>
+                <SelectItem value="feature">✨ New Feature</SelectItem>
+                <SelectItem value="maintenance">🔧 Maintenance</SelectItem>
+                <SelectItem value="promotion">🎁 Promotion</SelectItem>
+                <SelectItem value="alert">⚠️ Alert</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. New feature available!" maxLength={100} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Message</Label>
+            <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} placeholder="Write your message to creators..." maxLength={500} />
+            <p className="text-xs text-muted-foreground text-right">{message.length}/500</p>
+          </div>
+          <Button onClick={handleBroadcast} disabled={sending || !title.trim() || !message.trim()} className="w-full">
+            {sending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</> : <><Send className="h-4 w-4 mr-2" />Send to All Creators</>}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-amber-500/20 bg-amber-500/5">
+        <CardContent className="p-4 flex gap-3 items-start">
+          <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            This will send the notification to <strong>every user</strong> on the platform. Use it for important updates, new features, or announcements only.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -766,11 +924,14 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   maintenance_mode: "false",
   adsense_client_id: "",
   adsense_slot_id: "",
+  google_ads_code: "",
 };
 
 function SettingsTab() {
   const { toast } = useToast();
   const [form, setForm] = useState<PlatformSettings>(DEFAULT_SETTINGS);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: settings, isLoading } = useQuery<PlatformSettings>({
     queryKey: ["/admin/settings"], queryFn: () => api("/admin/settings"),
@@ -786,6 +947,29 @@ function SettingsTab() {
 
   const set = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
 
+  const handleLogoUpload = async (file: File) => {
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const urlRes = await api<{ uploadURL: string; objectPath: string }>("/uploads/request-url", {
+        method: "POST",
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      await fetch(urlRes.uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      const fileUrl = urlRes.uploadURL.split("?")[0];
+      set("logo_url", fileUrl);
+      toast({ title: "Logo uploaded! Click 'Save All Settings' to apply." });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   if (isLoading) return <div className="space-y-4">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>;
 
   return (
@@ -796,10 +980,46 @@ function SettingsTab() {
           <div className="space-y-1.5"><Label>Site Name</Label><Input value={form.site_name} onChange={(e) => set("site_name", e.target.value)} /></div>
           <div className="space-y-1.5"><Label>Tagline</Label><Input value={form.site_tagline} onChange={(e) => set("site_tagline", e.target.value)} /></div>
           <div className="space-y-1.5"><Label>Description</Label><Textarea value={form.site_description} onChange={(e) => set("site_description", e.target.value)} rows={2} /></div>
-          <div className="space-y-1.5">
-            <Label>Logo URL</Label>
-            <Input value={form.logo_url} onChange={(e) => set("logo_url", e.target.value)} placeholder="https://your-cdn.com/logo.png" />
-            {form.logo_url && <img src={form.logo_url} alt="Logo preview" className="h-10 mt-2 object-contain" onError={(e) => (e.currentTarget.style.display = "none")} />}
+
+          <div className="space-y-2">
+            <Label>Platform Logo</Label>
+            <div className="flex gap-3 items-start">
+              <div className="flex-1 space-y-2">
+                <Input
+                  value={form.logo_url}
+                  onChange={(e) => set("logo_url", e.target.value)}
+                  placeholder="https://your-cdn.com/logo.png (or upload below)"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                  >
+                    {uploadingLogo ? (
+                      <><Loader2 className="h-3 w-3 mr-1.5 animate-spin" />Uploading...</>
+                    ) : (
+                      <><Upload className="h-3 w-3 mr-1.5" />Upload Logo File</>
+                    )}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handleLogoUpload(e.target.files[0])}
+                  />
+                </div>
+              </div>
+              {form.logo_url && (
+                <div className="h-14 w-14 rounded-lg border border-border overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center">
+                  <img src={form.logo_url} alt="Logo preview" className="h-full w-full object-contain p-1" onError={(e) => (e.currentTarget.style.display = "none")} />
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -807,9 +1027,32 @@ function SettingsTab() {
       <Card>
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><Megaphone className="h-4 w-4" /> Google AdSense</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5"><Label>AdSense Client ID</Label><Input value={form.adsense_client_id} onChange={(e) => set("adsense_client_id", e.target.value)} placeholder="ca-pub-XXXXXXXXXXXXXXXX" /></div>
-          <div className="space-y-1.5"><Label>Default Ad Slot ID</Label><Input value={form.adsense_slot_id} onChange={(e) => set("adsense_slot_id", e.target.value)} placeholder="XXXXXXXXXX" /></div>
-          <p className="text-xs text-muted-foreground">These are embedded in creator public profiles when no sponsored ads are active.</p>
+          <div className="space-y-1.5">
+            <Label>AdSense Client ID</Label>
+            <Input value={form.adsense_client_id} onChange={(e) => set("adsense_client_id", e.target.value)} placeholder="ca-pub-XXXXXXXXXXXXXXXX" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Default Ad Slot ID</Label>
+            <Input value={form.adsense_slot_id} onChange={(e) => set("adsense_slot_id", e.target.value)} placeholder="XXXXXXXXXX" />
+          </div>
+          <p className="text-xs text-muted-foreground">These are embedded on creator public profiles when no sponsored ads are active.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2"><Link2 className="h-4 w-4" /> Google Ads / Tag Manager Code</CardTitle>
+          <CardDescription>Paste your Google Tag Manager or Google Ads global site tag snippet here. It will be injected into creator pages.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={form.google_ads_code}
+            onChange={(e) => set("google_ads_code", e.target.value)}
+            rows={5}
+            placeholder={"<!-- Google tag (gtag.js) -->\n<script async src=\"https://www.googletagmanager.com/gtag/js?id=AW-XXXXXXX\"></script>\n<script>...</script>"}
+            className="font-mono text-xs"
+          />
+          <p className="text-xs text-muted-foreground mt-2">Accepts raw HTML/script tags. Leave blank to disable.</p>
         </CardContent>
       </Card>
 
@@ -860,6 +1103,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="ads" className="gap-1.5 text-xs"><Megaphone className="h-3.5 w-3.5" />Ads</TabsTrigger>
           <TabsTrigger value="analytics" className="gap-1.5 text-xs"><Activity className="h-3.5 w-3.5" />Analytics</TabsTrigger>
           <TabsTrigger value="moderation" className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Moderation</TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-1.5 text-xs"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
           <TabsTrigger value="settings" className="gap-1.5 text-xs"><Settings className="h-3.5 w-3.5" />Settings</TabsTrigger>
         </TabsList>
 
@@ -870,6 +1114,7 @@ export default function AdminDashboard() {
         <TabsContent value="ads"><AdsTab /></TabsContent>
         <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
         <TabsContent value="moderation"><ModerationTab /></TabsContent>
+        <TabsContent value="notifications"><NotificationsTab /></TabsContent>
         <TabsContent value="settings"><SettingsTab /></TabsContent>
       </Tabs>
     </div>

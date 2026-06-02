@@ -19,6 +19,9 @@ export const adImpressionsTable = pgTable("ad_impressions", {
   id: serial("id").primaryKey(),
   adId: integer("ad_id").notNull(),
   creatorId: integer("creator_id").notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  deviceType: text("device_type"),
   recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

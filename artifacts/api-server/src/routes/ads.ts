@@ -1,20 +1,33 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, adsTable, adImpressionsTable, profilesTable, walletsTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
+import { db, adsTable, adImpressionsTable, profilesTable, walletsTable, transactionsTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 
 const router: IRouter = Router();
 
-router.get("/public-ads/active", async (req, res): Promise<void> => {
-  const { creatorUsername } = req.query as { creatorUsername?: string };
+function detectDevice(ua: string): string {
+  if (!ua) return "unknown";
+  const u = ua.toLowerCase();
+  if (u.includes("mobile") || u.includes("android") || u.includes("iphone")) return "mobile";
+  if (u.includes("tablet") || u.includes("ipad")) return "tablet";
+  return "desktop";
+}
 
-  const [ad] = await db
+router.get("/public-ads/active", async (req, res): Promise<void> => {
+  const { creatorUsername, limit: limitParam } = req.query as { creatorUsername?: string; limit?: string };
+  const limit = Math.min(parseInt(limitParam ?? "1", 10) || 1, 4);
+
+  const activeAds = await db
     .select()
     .from(adsTable)
     .where(eq(adsTable.isActive, true))
-    .limit(1);
+    .orderBy(desc(adsTable.createdAt))
+    .limit(limit);
 
-  if (!ad) { res.json(null); return; }
+  if (activeAds.length === 0) {
+    res.json(limit === 1 ? null : []);
+    return;
+  }
 
   if (creatorUsername) {
     const [profile] = await db
@@ -23,23 +36,60 @@ router.get("/public-ads/active", async (req, res): Promise<void> => {
       .where(eq(profilesTable.username, creatorUsername));
 
     if (profile) {
-      await db.insert(adImpressionsTable).values({ adId: ad.id, creatorId: profile.id });
+      const ipAddress =
+        (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? null;
+      const userAgent = (req.headers["user-agent"] as string) ?? null;
+      const deviceType = userAgent ? detectDevice(userAgent) : "unknown";
 
       const [wallet] = await db
         .select()
         .from(walletsTable)
         .where(eq(walletsTable.userId, profile.id));
 
-      if (wallet) {
-        await db
-          .update(walletsTable)
-          .set({ balance: wallet.balance + ad.earningsPerImpression })
-          .where(eq(walletsTable.id, wallet.id));
+      for (const ad of activeAds) {
+        await db.insert(adImpressionsTable).values({
+          adId: ad.id,
+          creatorId: profile.id,
+          ipAddress: ipAddress ? ipAddress.slice(0, 45) : null,
+          userAgent: userAgent ? userAgent.slice(0, 512) : null,
+          deviceType,
+        });
+
+        const earningsNgn = ad.earningsPerImpression / 100;
+
+        if (wallet) {
+          await db
+            .update(walletsTable)
+            .set({
+              balance: String(Number(wallet.balance) + earningsNgn),
+              totalEarned: String(Number(wallet.totalEarned) + earningsNgn),
+            })
+            .where(eq(walletsTable.id, wallet.id));
+        } else {
+          await db.insert(walletsTable).values({
+            userId: profile.id,
+            balance: String(earningsNgn),
+            totalEarned: String(earningsNgn),
+            totalWithdrawn: "0.00",
+            currency: "NGN",
+          });
+        }
+
+        await db.insert(transactionsTable).values({
+          userId: profile.id,
+          type: "earning",
+          amount: String(earningsNgn),
+          currency: "NGN",
+          description: `Ad impression: ${ad.title} (${ad.advertiserName})`,
+          reference: `AD-${ad.id}-${profile.id}-${Date.now()}`,
+          status: "completed",
+          metadata: JSON.stringify({ adId: ad.id, deviceType, source: "ad_impression" }),
+        });
       }
     }
   }
 
-  res.json({
+  const formatted = activeAds.map((ad) => ({
     id: ad.id,
     title: ad.title,
     description: ad.description,
@@ -47,7 +97,9 @@ router.get("/public-ads/active", async (req, res): Promise<void> => {
     ctaUrl: ad.ctaUrl,
     ctaText: ad.ctaText,
     advertiserName: ad.advertiserName,
-  });
+  }));
+
+  res.json(limit === 1 ? (formatted[0] ?? null) : formatted);
 });
 
 router.get("/ads/earnings", requireAuth(), async (req, res): Promise<void> => {
@@ -76,7 +128,13 @@ router.get("/ads/earnings", requireAuth(), async (req, res): Promise<void> => {
     }
   }
 
-  res.json({ totalImpressions: impressions.length, totalEarningsKobo });
+  const deviceBreakdown: Record<string, number> = {};
+  for (const imp of impressions) {
+    const d = imp.deviceType ?? "unknown";
+    deviceBreakdown[d] = (deviceBreakdown[d] ?? 0) + 1;
+  }
+
+  res.json({ totalImpressions: impressions.length, totalEarningsKobo, deviceBreakdown });
 });
 
 router.get("/admin/ads", requireAuth(), async (req, res): Promise<void> => {
@@ -137,7 +195,7 @@ router.patch("/admin/ads/:id", requireAuth(), async (req, res): Promise<void> =>
   const body = req.body as Record<string, unknown>;
 
   for (const key of ["title", "description", "imageUrl", "ctaUrl", "ctaText", "advertiserName", "isActive", "earningsPerImpression"]) {
-    if (body[key] !== undefined) updates[key === "imageUrl" ? "imageUrl" : key === "earningsPerImpression" ? "earningsPerImpression" : key] = body[key];
+    if (body[key] !== undefined) updates[key] = body[key];
   }
 
   const [ad] = await db.update(adsTable).set(updates).where(eq(adsTable.id, id)).returning();

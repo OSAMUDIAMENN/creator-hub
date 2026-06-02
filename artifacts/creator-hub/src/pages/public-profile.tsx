@@ -58,6 +58,7 @@ export default function PublicProfile() {
   const [previewProduct, setPreviewProduct] = useState<Product | null>(null);
   const [checkoutProduct, setCheckoutProduct] = useState<Product | null>(null);
   const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerName, setBuyerName] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [ad, setAd] = useState<AdData>(undefined as any);
 
@@ -102,6 +103,7 @@ export default function PublicProfile() {
     setPreviewProduct(null);
     setCheckoutProduct(product);
     setBuyerEmail("");
+    setBuyerName("");
   };
 
   const handleFreeDownload = async (productId: number) => {
@@ -109,13 +111,17 @@ export default function PublicProfile() {
       await fetch(`${BASE_URL}/api/paystack/product/${productId}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "free@download.app" }),
+        body: JSON.stringify({ email: "free@download.app", buyerName: "Free Download" }),
       });
     } catch {}
   };
 
   const handleBuyNow = async () => {
     if (!checkoutProduct) return;
+    if (!buyerName.trim()) {
+      toast({ title: "Please enter your name", variant: "destructive" });
+      return;
+    }
     if (!buyerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) {
       toast({ title: "Please enter a valid email address", variant: "destructive" });
       return;
@@ -125,7 +131,7 @@ export default function PublicProfile() {
       const res = await fetch(`${BASE_URL}/api/paystack/product/${checkoutProduct.id}/checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: buyerEmail }),
+        body: JSON.stringify({ email: buyerEmail, buyerName: buyerName.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Checkout failed");
@@ -364,10 +370,20 @@ export default function PublicProfile() {
             <DialogDescription>
               You're buying <span className="font-semibold text-foreground">{checkoutProduct?.name}</span> for{" "}
               <span className="font-semibold text-primary">₦{Number(checkoutProduct?.price ?? 0).toLocaleString()}</span>.
-              Enter your email to receive your download link.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="buyer-name">Your Name</Label>
+              <Input
+                id="buyer-name"
+                type="text"
+                placeholder="John Doe"
+                value={buyerName}
+                onChange={(e) => setBuyerName(e.target.value)}
+                disabled={checkingOut}
+              />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="buyer-email">Your Email</Label>
               <Input
