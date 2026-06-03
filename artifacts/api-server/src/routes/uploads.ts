@@ -16,10 +16,17 @@ router.post("/uploads/request-url", requireAuth(), async (req, res): Promise<voi
     res.status(400).json({ error: "name, size, and contentType are required" }); return;
   }
 
-  const uploadURL = await storage.getObjectEntityUploadURL();
-  const objectPath = storage.normalizeObjectEntityPath(uploadURL);
-
-  res.json({ uploadURL, objectPath });
+  try {
+    const uploadURL = await storage.getObjectEntityUploadURL();
+    const objectPath = storage.normalizeObjectEntityPath(uploadURL);
+    res.json({ uploadURL, objectPath });
+  } catch (err: any) {
+    console.error("Object storage upload URL error:", err?.message ?? err);
+    res.status(503).json({
+      error: "File upload is temporarily unavailable. Please try again or contact support.",
+      detail: err?.message,
+    });
+  }
 });
 
 router.get("/uploads", requireAuth(), async (req, res): Promise<void> => {

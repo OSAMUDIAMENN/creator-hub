@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Users, Plus, UserPlus, Trash2, Copy, Loader2, Building2, Crown } from "lucide-react";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const ROLE_COLORS: Record<string, string> = {
   owner: "bg-amber-500/10 text-amber-600 border-amber-500/20",
@@ -197,6 +198,8 @@ export default function TeamsPage() {
           <Plus className="h-4 w-4 mr-2" /> Create Team
         </Button>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       {isLoading ? (
         <div className="grid gap-4">{[1,2].map(i => <Skeleton key={i} className="h-32" />)}</div>

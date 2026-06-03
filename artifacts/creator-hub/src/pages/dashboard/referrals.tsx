@@ -11,6 +11,7 @@ import {
   Link2, TrendingUp, Star, ChevronRight, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -31,6 +32,7 @@ type ReferralData = {
   convertedReferrals: number;
   totalEarned: number;
   pendingEarnings: number;
+  wasReferred: boolean;
   referrals: {
     id: number;
     status: string;
@@ -38,6 +40,8 @@ type ReferralData = {
     rewardAmount: number;
     createdAt: string;
     convertedAt: string | null;
+    refereeName: string | null;
+    refereeUsername: string | null;
   }[];
 };
 
@@ -102,6 +106,8 @@ export default function ReferralsDashboard() {
           Share CreatorHub with other creators. Earn <span className="font-semibold text-foreground">₦980</span> when they go Pro or <span className="font-semibold text-foreground">₦1,980</span> when they go Business.
         </p>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -249,13 +255,13 @@ export default function ReferralsDashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">
-                        {r.status === "rewarded" || r.status === "converted"
-                          ? `Upgraded to ${PLAN_NAMES[r.refereePlan ?? ""] ?? r.refereePlan ?? "a paid plan"}`
-                          : "Signed up via your link"}
+                        {r.refereeName
+                          ? <span>{r.refereeName} <span className="text-muted-foreground font-normal">@{r.refereeUsername}</span></span>
+                          : "Anonymous Referral"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {r.convertedAt
-                          ? `Converted ${new Date(r.convertedAt).toLocaleDateString()}`
+                        {r.status === "rewarded" || r.status === "converted"
+                          ? `Upgraded to ${PLAN_NAMES[r.refereePlan ?? ""] ?? r.refereePlan ?? "paid plan"} · ${r.convertedAt ? new Date(r.convertedAt).toLocaleDateString() : ""}`
                           : `Signed up ${new Date(r.createdAt).toLocaleDateString()}`}
                       </p>
                     </div>
@@ -271,31 +277,44 @@ export default function ReferralsDashboard() {
         </CardContent>
       </Card>
 
-      {/* Apply a code (for new users) */}
-      <Card className="border-dashed">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Were you referred?</CardTitle>
-          <CardDescription>If someone shared their referral code with you and you haven't applied it yet, enter it here.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Input
-              value={applyCode}
-              onChange={(e) => setApplyCode(e.target.value.toUpperCase())}
-              placeholder="e.g. JOHN1234-AB3CD"
-              className="font-mono"
-              maxLength={20}
-            />
-            <Button
-              variant="outline"
-              onClick={() => applyMutation.mutate(applyCode)}
-              disabled={!applyCode.trim() || applyMutation.isPending}
-            >
-              {applyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply Code"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Apply a code (for new users only) */}
+      {!isLoading && (
+        <Card className={cn("border-dashed", data?.wasReferred && "opacity-75")}>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Were you referred?</CardTitle>
+            <CardDescription>
+              {data?.wasReferred
+                ? "You have already applied a referral code — your referrer will earn a reward when you upgrade!"
+                : "If a creator shared their referral code with you and you haven't applied it yet, enter it here. Only available for new users."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {data?.wasReferred ? (
+              <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-500/20 px-4 py-3">
+                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                <p className="text-sm text-green-700 font-medium">Referral code applied successfully.</p>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={applyCode}
+                  onChange={(e) => setApplyCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. JOHN1234-AB3CD"
+                  className="font-mono"
+                  maxLength={20}
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => applyMutation.mutate(applyCode)}
+                  disabled={!applyCode.trim() || applyMutation.isPending}
+                >
+                  {applyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply Code"}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { SiTiktok, SiInstagram, SiYoutube, SiFacebook, SiX } from "react-icons/si";
 import { cn } from "@/lib/utils";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -418,6 +419,8 @@ export default function SocialAccountsPage() {
           </Badge>
         )}
       </div>
+
+      <DashboardAdBanner count={1} />
 
       <Tabs defaultValue="accounts">
         <TabsList>

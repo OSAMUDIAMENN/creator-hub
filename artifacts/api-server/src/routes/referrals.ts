@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, and, desc } from "drizzle-orm";
 import {
-  db, referralsTable, profilesTable, walletsTable, transactionsTable, notificationsTable,
+  db, referralsTable, profilesTable, walletsTable, transactionsTable, notificationsTable, subscriptionsTable,
 } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 import { nanoid } from "nanoid";
@@ -67,23 +67,54 @@ router.get("/referral", requireAuth(), async (req: Request, res: Response): Prom
   const host = req.get("host") ?? "";
   const referralLink = `${proto}://${host}/sign-up?ref=${myCode}`;
 
+  // Check if current user was referred by someone
+  const [wasReferredRow] = await db
+    .select()
+    .from(referralsTable)
+    .where(and(eq(referralsTable.refereeId, profile.id)));
+
+  // Fetch referee profiles for history enrichment
+  const referralList = allReferrals.filter((r) => r.refereeId !== null);
+  const refereeIds = referralList.map((r) => r.refereeId!);
+  const refereeProfiles = refereeIds.length
+    ? await db.select({ id: profilesTable.id, name: profilesTable.name, username: profilesTable.username })
+        .from(profilesTable)
+        .where(eq(profilesTable.id, refereeIds[0])) // handled in map below
+        .then(() =>
+          Promise.all(
+            refereeIds.map((id) =>
+              db.select({ id: profilesTable.id, name: profilesTable.name, username: profilesTable.username })
+                .from(profilesTable)
+                .where(eq(profilesTable.id, id))
+                .then((rows) => rows[0])
+            )
+          )
+        )
+    : [];
+
+  const refereeMap = new Map(refereeProfiles.filter(Boolean).map((p) => [p.id, p]));
+
   res.json({
     code: myCode,
     referralLink,
-    totalReferrals: allReferrals.filter((r) => r.refereeId !== null).length,
+    totalReferrals: referralList.length,
     convertedReferrals: converted.length,
     totalEarned,
     pendingEarnings,
-    referrals: allReferrals
-      .filter((r) => r.refereeId !== null)
-      .map((r) => ({
+    wasReferred: !!wasReferredRow,
+    referrals: referralList.map((r) => {
+      const referee = refereeMap.get(r.refereeId!);
+      return {
         id: r.id,
         status: r.status,
         refereePlan: r.refereePlan,
         rewardAmount: Number(r.rewardAmount),
         createdAt: r.createdAt.toISOString(),
         convertedAt: r.convertedAt?.toISOString() ?? null,
-      })),
+        refereeName: referee?.name ?? null,
+        refereeUsername: referee?.username ?? null,
+      };
+    }),
   });
 });
 
@@ -97,6 +128,17 @@ router.post("/referral/apply", requireAuth(), async (req: Request, res: Response
 
   const [me] = await db.select().from(profilesTable).where(eq(profilesTable.clerkId, clerkId));
   if (!me) { res.status(404).json({ error: "Profile not found" }); return; }
+
+  // Prevent existing creators (those who already have referral entries as a referrer) from applying codes
+  const [alreadyReferrer] = await db.select().from(referralsTable).where(eq(referralsTable.referrerId, me.id));
+  if (alreadyReferrer) {
+    res.status(400).json({ error: "Existing creators cannot apply referral codes. This feature is for new users only." });
+    return;
+  }
+
+  // Check if this user has already been referred
+  const [alreadyReferred] = await db.select().from(referralsTable).where(eq(referralsTable.refereeId, me.id));
+  if (alreadyReferred) { res.status(400).json({ error: "You have already applied a referral code." }); return; }
 
   // Find the referral code (must be a pending row with no referee yet, or just by code)
   const [ref] = await db.select().from(referralsTable).where(eq(referralsTable.code, code));

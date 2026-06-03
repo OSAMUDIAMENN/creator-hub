@@ -17,9 +17,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, User, Link as LinkIcon, Palette, Upload } from "lucide-react";
+import { Save, User, Link as LinkIcon, Palette, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { FileUploader } from "@/components/file-uploader";
+import { cn } from "@/lib/utils";
+
+const PROFILE_THEMES = [
+  { id: "default", name: "Default", desc: "Clean white background", preview: "bg-white border border-gray-200" },
+  { id: "gradient", name: "Gradient", desc: "Warm orange gradient header", preview: "bg-gradient-to-br from-orange-500 to-amber-400" },
+  { id: "dark", name: "Dark", desc: "Sleek dark background", preview: "bg-gray-950 border border-gray-700" },
+  { id: "minimal", name: "Minimal", desc: "Ultra-clean typography", preview: "bg-gray-50 border border-gray-100" },
+  { id: "vibrant", name: "Vibrant", desc: "Bold purple-to-orange", preview: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400" },
+];
 
 const profileSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -27,6 +36,7 @@ const profileSchema = z.object({
   bio: z.string().max(160, "Bio max 160 characters").optional(),
   whatsappNumber: z.string().optional(),
   profileImage: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  theme: z.string().optional(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -57,6 +67,7 @@ export default function Settings() {
         bio: profile.bio || "",
         whatsappNumber: profile.whatsappNumber || "",
         profileImage: profile.profileImage || "",
+        theme: (profile as any).theme || "default",
       });
     }
   }, [profile, form]);
@@ -193,6 +204,54 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-5 w-5" /> Profile Page Theme
+              </CardTitle>
+              <CardDescription>Choose how your public link-in-bio page looks to visitors.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {PROFILE_THEMES.map((t) => {
+                  const selected = (form.watch("theme") || "default") === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        form.setValue("theme", t.id, { shouldDirty: true });
+                        updateProfile.mutate(
+                          { data: { ...form.getValues(), theme: t.id } as any },
+                          {
+                            onSuccess: () => {
+                              queryClient.invalidateQueries({ queryKey: getGetProfileQueryKey() });
+                              toast({ title: `Profile theme changed to "${t.name}"` });
+                            },
+                          }
+                        );
+                      }}
+                      className={cn(
+                        "relative rounded-xl overflow-hidden border-2 transition-all text-left group",
+                        selected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <div className={`h-14 w-full ${t.preview}`} />
+                      <div className="p-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold">{t.name}</p>
+                          {selected && <CheckCircle2 className="h-3.5 w-3.5 text-primary" />}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{t.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">Clicking a theme saves it immediately. <a href={`/${profile?.username}`} target="_blank" className="text-primary hover:underline">Preview your profile →</a></p>
             </CardContent>
           </Card>
         </div>

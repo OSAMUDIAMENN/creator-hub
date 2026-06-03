@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, GripVertical, Pencil, Trash2, ExternalLink, MousePointerClick } from "lucide-react";
 import { FreemiumGate, FeatureUsageBadge } from "@/components/feature-limit";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const linkSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -152,6 +153,8 @@ export default function LinksManager() {
           <Plus className="h-4 w-4 mr-2" /> Add Link
         </Button>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       {profile && (
         <Card className="bg-primary/10 border-primary/20">

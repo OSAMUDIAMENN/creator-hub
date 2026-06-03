@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 export default function Analytics() {
   const { data: summary, isLoading: isLoadingSummary } = useGetAnalyticsSummary();
@@ -48,6 +49,8 @@ export default function Analytics() {
         <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
         <p className="text-muted-foreground mt-1">Track your performance and growth.</p>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 

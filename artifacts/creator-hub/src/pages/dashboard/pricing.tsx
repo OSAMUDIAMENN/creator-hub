@@ -8,6 +8,7 @@ import { Check, Zap, Crown, Building2, Loader2, CheckCircle2 } from "lucide-reac
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -76,6 +77,8 @@ export default function PricingPage() {
           Choose the plan that's right for your creator journey.
         </p>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       {subscription && (
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex items-center justify-between">

@@ -4,4 +4,6 @@
 - [AI chat fetch credentials](ai-fetch-credentials.md) — all direct fetch() calls to /api/openai/* need credentials:"include" for Clerk cookie auth to work.
 - [Profile link](profile-link.md) — public profile URL is /{username} (no /p/ prefix); settings.tsx shows window.location.origin + "/" + username.
 - [New features](new-features.md) — Marketplace, Messaging (team chat+activity), Team Accounts, Team Collaboration all built; schema tables: marketplace_listings, team_invitations, team_messages, team_activity.
-- [Admin + Ad system](admin-ad-system.md) — ad earnings stored in kobo, wallet balance in NGN (÷100); admin has 9 tabs incl. Notifications broadcast, logo upload via object-storage request-url flow.
+- [Admin + Ad system](admin-ad-system.md) — ad earnings stored in kobo, wallet balance in NGN (÷100); admin has 10 tabs incl. Plans editor, Notifications broadcast, logo upload via object-storage request-url flow.
+- [Profile themes](profile-themes.md) — 5 themes (default/gradient/dark/minimal/vibrant) stored in profiles.theme DB field; settings picker saves immediately on click; public-profile reads theme and applies to wrapper+buttons.
+- [Referral guards](referral-guards.md) — existing creators (have referrals as referrer) blocked from applying codes; already-referred users blocked; wasReferred flag returned in /referral GET.

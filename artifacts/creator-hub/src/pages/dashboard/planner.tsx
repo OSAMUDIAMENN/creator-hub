@@ -52,6 +52,7 @@ import {
 import { SiTiktok, SiInstagram, SiYoutube, SiFacebook, SiX } from "react-icons/si";
 import { cn } from "@/lib/utils";
 import { FileUploader } from "@/components/file-uploader";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const postSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -717,6 +718,8 @@ export default function ContentPlanner() {
           <Plus className="h-4 w-4 mr-2" /> Create Post
         </Button>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       <ContentHeatmap posts={allPosts ?? []} />
 

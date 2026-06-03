@@ -42,6 +42,49 @@ type AdData = {
   advertiserName: string;
 } | null;
 
+const PROFILE_THEMES: Record<string, { bg: string; card: string; headerBg: string; text: string; subText: string; buttonClass: string; }> = {
+  default: {
+    bg: "bg-background text-foreground",
+    headerBg: "",
+    card: "bg-card border border-border/50",
+    text: "text-foreground",
+    subText: "text-muted-foreground",
+    buttonClass: "",
+  },
+  gradient: {
+    bg: "bg-gradient-to-b from-orange-50 to-background text-foreground",
+    headerBg: "bg-gradient-to-br from-orange-500 to-amber-400 text-white rounded-3xl p-6 mb-2 -mx-0",
+    card: "bg-white border border-orange-100 shadow-sm",
+    text: "text-gray-900",
+    subText: "text-gray-600",
+    buttonClass: "bg-gradient-to-r from-orange-500 to-amber-400 text-white hover:opacity-90 border-0",
+  },
+  dark: {
+    bg: "bg-gray-950 text-white",
+    headerBg: "",
+    card: "bg-gray-900 border border-gray-800",
+    text: "text-white",
+    subText: "text-gray-400",
+    buttonClass: "bg-gray-800 text-white hover:bg-gray-700 border-gray-700",
+  },
+  minimal: {
+    bg: "bg-white text-gray-900",
+    headerBg: "",
+    card: "bg-gray-50 border-0 shadow-none",
+    text: "text-gray-900",
+    subText: "text-gray-500",
+    buttonClass: "bg-black text-white hover:bg-gray-800 border-0 rounded-none",
+  },
+  vibrant: {
+    bg: "bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 text-white min-h-screen",
+    headerBg: "",
+    card: "bg-white/10 backdrop-blur border border-white/20",
+    text: "text-white",
+    subText: "text-white/70",
+    buttonClass: "bg-white text-purple-700 hover:bg-white/90 border-0 font-bold",
+  },
+};
+
 export default function PublicProfile() {
   const { username } = useParams<{ username: string }>();
   const { data: profile, isLoading, isError } = useGetPublicProfile(username!, {
@@ -60,15 +103,28 @@ export default function PublicProfile() {
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerName, setBuyerName] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
-  const [ad, setAd] = useState<AdData>(undefined as any);
+  const [ads, setAds] = useState<NonNullable<AdData>[]>([]);
+  const [adIndex, setAdIndex] = useState(0);
 
   useEffect(() => {
     if (!username) return;
-    fetch(`${BASE_URL}/api/public-ads/active?creatorUsername=${encodeURIComponent(username)}`)
+    fetch(`${BASE_URL}/api/public-ads/active?limit=5`)
       .then((r) => r.json())
-      .then((data) => setAd(data))
-      .catch(() => setAd(null));
+      .then((data) => {
+        if (Array.isArray(data)) setAds(data);
+        else if (data && typeof data === "object" && data.id) setAds([data]);
+      })
+      .catch(() => {});
   }, [username]);
+
+  // Rotate ads every 10 seconds
+  useEffect(() => {
+    if (ads.length <= 1) return;
+    const timer = setInterval(() => setAdIndex((i) => (i + 1) % ads.length), 10000);
+    return () => clearInterval(timer);
+  }, [ads.length]);
+
+  const ad = ads[adIndex] ?? null;
 
   const handleLinkClick = (linkId: number, url: string) => {
     trackClick.mutate({ id: linkId });
@@ -174,8 +230,11 @@ export default function PublicProfile() {
     );
   }
 
+  const themeKey = (profile as any).theme || "default";
+  const t = PROFILE_THEMES[themeKey] ?? PROFILE_THEMES.default;
+
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground py-12 px-4 selection:bg-primary selection:text-primary-foreground">
+    <div className={`min-h-[100dvh] ${t.bg} py-12 px-4 selection:bg-primary selection:text-primary-foreground`}>
       <div className="max-w-md mx-auto w-full space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
 
         {/* Header */}
@@ -221,10 +280,10 @@ export default function PublicProfile() {
               <button
                 key={link.id}
                 onClick={() => handleLinkClick(link.id, link.url)}
-                className="w-full group relative flex items-center justify-center p-4 min-h-[60px] bg-card hover:bg-accent border border-border/50 rounded-xl transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98]"
+                className={`w-full group relative flex items-center justify-center p-4 min-h-[60px] rounded-xl transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98] ${t.buttonClass || "bg-card hover:bg-accent border border-border/50"}`}
               >
                 <span className="font-semibold text-center w-full px-8">{link.title}</span>
-                <ExternalLink className="absolute right-4 h-4 w-4 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
+                <ExternalLink className="absolute right-4 h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity" />
               </button>
             ))}
           </div>

@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Zap, Sparkles, Crown, Loader2, ArrowRight, RefreshCw, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -78,6 +79,8 @@ export default function CreditsPage() {
           Buy extra credits or upgrade your plan for more monthly allowance.
         </p>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       {/* Current Balance */}
       <Card className="border-primary/20 bg-primary/5">

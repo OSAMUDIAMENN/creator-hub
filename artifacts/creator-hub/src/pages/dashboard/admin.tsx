@@ -1075,6 +1075,109 @@ function SettingsTab() {
   );
 }
 
+// ── Plans Tab ─────────────────────────────────────────────────────────────────
+const DEFAULT_PLAN_SETTINGS = {
+  plan_free_name: "Free",
+  plan_pro_name: "Creator Pro",
+  plan_pro_price: "4900",
+  plan_pro_description: "For serious creators ready to grow",
+  plan_business_name: "Creator Business",
+  plan_business_price: "9900",
+  plan_business_description: "For growing creator businesses",
+};
+
+function PlansTab() {
+  const { toast } = useToast();
+  const [form, setForm] = useState(DEFAULT_PLAN_SETTINGS);
+
+  const { data: settings, isLoading } = useQuery<Record<string, string>>({
+    queryKey: ["/admin/settings"], queryFn: () => api("/admin/settings"),
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setForm((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          Object.keys(DEFAULT_PLAN_SETTINGS).map((k) => [k, settings[k] ?? (DEFAULT_PLAN_SETTINGS as any)[k]])
+        ),
+      }));
+    }
+  }, [settings]);
+
+  const save = useMutation({
+    mutationFn: (data: Record<string, string>) => api("/admin/settings", { method: "PATCH", body: JSON.stringify(data) }),
+    onSuccess: () => toast({ title: "Plan settings saved!" }),
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const set = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+
+  if (isLoading) return <div className="space-y-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24" />)}</div>;
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <p className="text-sm text-muted-foreground">Edit plan names, pricing, and descriptions. Prices are in kobo (100 = ₦1).</p>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Free Plan</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Plan Name</Label>
+            <Input value={form.plan_free_name} onChange={(e) => set("plan_free_name", e.target.value)} placeholder="Free" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Crown className="h-4 w-4 text-primary" /> Pro Plan</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Plan Name</Label>
+              <Input value={form.plan_pro_name} onChange={(e) => set("plan_pro_name", e.target.value)} placeholder="Creator Pro" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Monthly Price (kobo)</Label>
+              <Input type="number" value={form.plan_pro_price} onChange={(e) => set("plan_pro_price", e.target.value)} placeholder="4900" />
+              <p className="text-xs text-muted-foreground">= ₦{(Number(form.plan_pro_price) / 100).toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Input value={form.plan_pro_description} onChange={(e) => set("plan_pro_description", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base flex items-center gap-2"><Building2 className="h-4 w-4 text-amber-500" /> Business Plan</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Plan Name</Label>
+              <Input value={form.plan_business_name} onChange={(e) => set("plan_business_name", e.target.value)} placeholder="Creator Business" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Monthly Price (kobo)</Label>
+              <Input type="number" value={form.plan_business_price} onChange={(e) => set("plan_business_price", e.target.value)} placeholder="9900" />
+              <p className="text-xs text-muted-foreground">= ₦{(Number(form.plan_business_price) / 100).toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Input value={form.plan_business_description} onChange={(e) => set("plan_business_description", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Button onClick={() => save.mutate(form)} disabled={save.isPending} className="w-full">
+        {save.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : "Save Plan Settings"}
+      </Button>
+    </div>
+  );
+}
+
 // ── Main Admin Page ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery<AdminStats>({
@@ -1104,6 +1207,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="analytics" className="gap-1.5 text-xs"><Activity className="h-3.5 w-3.5" />Analytics</TabsTrigger>
           <TabsTrigger value="moderation" className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Moderation</TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1.5 text-xs"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
+          <TabsTrigger value="plans" className="gap-1.5 text-xs"><Crown className="h-3.5 w-3.5" />Plans</TabsTrigger>
           <TabsTrigger value="settings" className="gap-1.5 text-xs"><Settings className="h-3.5 w-3.5" />Settings</TabsTrigger>
         </TabsList>
 
@@ -1115,6 +1219,7 @@ export default function AdminDashboard() {
         <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
         <TabsContent value="moderation"><ModerationTab /></TabsContent>
         <TabsContent value="notifications"><NotificationsTab /></TabsContent>
+        <TabsContent value="plans"><PlansTab /></TabsContent>
         <TabsContent value="settings"><SettingsTab /></TabsContent>
       </Tabs>
     </div>

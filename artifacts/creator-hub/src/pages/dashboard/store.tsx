@@ -48,6 +48,7 @@ import {
 import { Plus, Pencil, Trash2, ShoppingBag, Package, Link2, Upload } from "lucide-react";
 import { FreemiumGate, FeatureUsageBadge } from "@/components/feature-limit";
 import { FileUploader } from "@/components/file-uploader";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -175,6 +176,8 @@ export default function StoreManager() {
           <Plus className="h-4 w-4 mr-2" /> Add Product
         </Button>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

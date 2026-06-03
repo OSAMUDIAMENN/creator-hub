@@ -12,6 +12,7 @@ import { MessageSquare, Send, Activity, Users, Bell, CheckCircle2, Info } from "
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useListTeams } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -145,6 +146,8 @@ export default function MessagingPage() {
           <p className="text-muted-foreground mt-1">Communicate and collaborate with your team.</p>
         </div>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       <div className="flex gap-4 flex-1 min-h-0" style={{ minHeight: "calc(100vh - 14rem)" }}>
         {/* Team List Sidebar */}

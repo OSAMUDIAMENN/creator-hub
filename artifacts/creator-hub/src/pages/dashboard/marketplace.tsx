@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { FileUploader } from "@/components/file-uploader";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -239,6 +240,8 @@ export default function MarketplacePage() {
           <Plus className="h-4 w-4 mr-2" /> New Listing
         </Button>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

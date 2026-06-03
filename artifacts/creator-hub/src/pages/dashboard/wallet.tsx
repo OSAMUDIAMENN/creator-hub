@@ -42,6 +42,7 @@ import {
   Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
 
 const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -133,6 +134,8 @@ export default function WalletPage() {
           Withdraw
         </Button>
       </div>
+
+      <DashboardAdBanner count={1} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
