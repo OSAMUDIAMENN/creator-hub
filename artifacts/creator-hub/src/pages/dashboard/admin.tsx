@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FeatureFlagsTab, MenuBuilderTab, CmsTab, AuditLogsTab, WalletMgmtTab, SecurityTab } from "./admin-super";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
+import {
+  ResponsiveContainer, AreaChart, Area, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -114,15 +118,49 @@ function fmtBytes(b: number) {
   return `${(b / 1024 ** 3).toFixed(2)} GB`;
 }
 
+type ChartDay = { date: string; signups: number; revenue: number };
+
+function fmtShortDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-NG", { month: "short", day: "numeric" });
+}
+
+function RevenueChartTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-background border rounded-lg p-3 shadow-lg text-xs space-y-1">
+      <p className="font-semibold text-muted-foreground">{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} style={{ color: p.color }} className="font-medium">
+          {p.name === "revenue" ? fmtNGN(p.value) : `${p.value} signups`}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 // ── Overview Tab ─────────────────────────────────────────────────────────────
 function OverviewTab({ stats }: { stats: AdminStats | undefined }) {
   const qc = useQueryClient();
+  const [chartRange, setChartRange] = useState<7 | 30 | 90>(30);
+
+  const { data: chartData = [], isLoading: chartLoading } = useQuery<ChartDay[]>({
+    queryKey: ["/admin/revenue-chart", chartRange],
+    queryFn: () => api(`/admin/revenue-chart?days=${chartRange}`),
+  });
+
+  const formattedChart = chartData.map((d) => ({
+    ...d,
+    date: fmtShortDate(d.date),
+    revenue: Number(d.revenue),
+  }));
+
   if (!stats) return <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{[...Array(10)].map((_, i) => <Skeleton key={i} className="h-28" />)}</div>;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Platform Overview</h3>
-        <Button variant="ghost" size="sm" onClick={() => qc.invalidateQueries({ queryKey: ["/admin/stats"] })}>
+        <Button variant="ghost" size="sm" onClick={() => { qc.invalidateQueries({ queryKey: ["/admin/stats"] }); qc.invalidateQueries({ queryKey: ["/admin/revenue-chart"] }); }}>
           <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
         </Button>
       </div>
@@ -146,6 +184,75 @@ function OverviewTab({ stats }: { stats: AdminStats | undefined }) {
         <StatCard icon={DollarSign} label="Transaction Volume" value={fmtNGN(stats.totalTransactionVolume)} color="text-green-600" />
         <StatCard icon={Megaphone} label="Active Ads" value={fmt(stats.activeAds)} color="text-orange-500" />
       </div>
+
+      {/* Revenue & Signups Chart */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-sm">Revenue & Signups Trend</CardTitle>
+              <CardDescription className="text-xs">Daily completed transaction revenue and new user signups</CardDescription>
+            </div>
+            <div className="flex gap-1">
+              {([7, 30, 90] as const).map((d) => (
+                <Button key={d} variant={chartRange === d ? "default" : "outline"} size="sm" className="h-7 text-xs px-2.5" onClick={() => setChartRange(d)}>
+                  {d}d
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {chartLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={formattedChart} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="signupsGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={chartRange === 7 ? 0 : chartRange === 30 ? 4 : 9}
+                />
+                <YAxis
+                  yAxisId="revenue"
+                  orientation="left"
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`}
+                  width={52}
+                />
+                <YAxis
+                  yAxisId="signups"
+                  orientation="right"
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  tickLine={false}
+                  axisLine={false}
+                  allowDecimals={false}
+                  width={32}
+                />
+                <Tooltip content={<RevenueChartTooltip />} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                <Area yAxisId="revenue" type="monotone" dataKey="revenue" stroke="#f97316" strokeWidth={2} fill="url(#revenueGrad)" name="revenue" dot={false} activeDot={{ r: 4 }} />
+                <Area yAxisId="signups" type="monotone" dataKey="signups" stroke="#3b82f6" strokeWidth={2} fill="url(#signupsGrad)" name="signups" dot={false} activeDot={{ r: 4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-4">
         <Card>

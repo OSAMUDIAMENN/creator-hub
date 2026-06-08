@@ -111,6 +111,45 @@ router.get("/admin/revenue", requireAuth(), requireAdmin, async (req: Request, r
   });
 });
 
+// ── Revenue Chart (daily 30-day trend) ───────────────────────────────────────
+router.get("/admin/revenue-chart", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const days = Math.min(Number(req.query.days) || 30, 90);
+
+  const rows = await db.execute(sql`
+    WITH date_series AS (
+      SELECT generate_series(
+        (CURRENT_DATE - INTERVAL '1 day' * ${days - 1})::date,
+        CURRENT_DATE::date,
+        '1 day'::interval
+      )::date AS day
+    ),
+    daily_signups AS (
+      SELECT DATE(created_at) AS day, COUNT(*) AS signups
+      FROM profiles
+      WHERE created_at >= CURRENT_DATE - INTERVAL '1 day' * ${days - 1}
+      GROUP BY 1
+    ),
+    daily_revenue AS (
+      SELECT DATE(created_at) AS day,
+             COALESCE(SUM(amount), 0) AS revenue
+      FROM transactions
+      WHERE status = 'completed'
+        AND created_at >= CURRENT_DATE - INTERVAL '1 day' * ${days - 1}
+      GROUP BY 1
+    )
+    SELECT
+      ds.day::text AS date,
+      COALESCE(sg.signups, 0)::int AS signups,
+      COALESCE(dr.revenue, 0)::numeric AS revenue
+    FROM date_series ds
+    LEFT JOIN daily_signups sg ON sg.day = ds.day
+    LEFT JOIN daily_revenue dr ON dr.day = ds.day
+    ORDER BY ds.day
+  `);
+
+  res.json(rows.rows);
+});
+
 // ── Users ────────────────────────────────────────────────────────────────────
 router.get("/admin/users", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const limit = Math.min(Number(req.query.limit) || 100, 500);
