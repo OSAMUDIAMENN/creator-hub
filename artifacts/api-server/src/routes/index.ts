@@ -24,6 +24,7 @@ import adsRouter from "./ads";
 import marketplaceRouter from "./marketplace";
 import messagingRouter from "./messaging";
 import referralsRouter from "./referrals";
+import adminExtendedRouter from "./admin-extended";
 
 const router: IRouter = Router();
 
@@ -52,5 +53,6 @@ router.use(adsRouter);
 router.use(marketplaceRouter);
 router.use(messagingRouter);
 router.use(referralsRouter);
+router.use(adminExtendedRouter);
 
 export default router;

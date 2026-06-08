@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { FeatureFlagsTab, MenuBuilderTab, CmsTab, AuditLogsTab, WalletMgmtTab, SecurityTab } from "./admin-super";
 import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,7 @@ import {
   Trash2, Ban, UserCheck, TrendingUp, Package, AlertTriangle, Globe, Image,
   ArrowUpRight, Wallet, Activity, HardDrive, Plus, Edit, ToggleLeft, ToggleRight,
   ArrowDownCircle, Bell, Send, Upload, Link2,
+  Menu, FileText, ClipboardList, WalletCards, Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -1198,29 +1200,53 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="overview" className="gap-1.5 text-xs"><BarChart2 className="h-3.5 w-3.5" />Overview</TabsTrigger>
-          <TabsTrigger value="users" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Users</TabsTrigger>
-          <TabsTrigger value="revenue" className="gap-1.5 text-xs"><DollarSign className="h-3.5 w-3.5" />Revenue</TabsTrigger>
-          <TabsTrigger value="withdrawals" className="gap-1.5 text-xs"><ArrowDownCircle className="h-3.5 w-3.5" />Withdrawals</TabsTrigger>
-          <TabsTrigger value="ads" className="gap-1.5 text-xs"><Megaphone className="h-3.5 w-3.5" />Ads</TabsTrigger>
-          <TabsTrigger value="analytics" className="gap-1.5 text-xs"><Activity className="h-3.5 w-3.5" />Analytics</TabsTrigger>
-          <TabsTrigger value="moderation" className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Moderation</TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-1.5 text-xs"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
-          <TabsTrigger value="plans" className="gap-1.5 text-xs"><Crown className="h-3.5 w-3.5" />Plans</TabsTrigger>
-          <TabsTrigger value="settings" className="gap-1.5 text-xs"><Settings className="h-3.5 w-3.5" />Settings</TabsTrigger>
-        </TabsList>
+        <div className="border rounded-xl p-2 bg-muted/30">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-1.5">Platform</p>
+          <TabsList className="flex-wrap h-auto gap-1 bg-transparent mb-2">
+            <TabsTrigger value="overview" className="gap-1.5 text-xs"><BarChart2 className="h-3.5 w-3.5" />Overview</TabsTrigger>
+            <TabsTrigger value="users" className="gap-1.5 text-xs"><Users className="h-3.5 w-3.5" />Users</TabsTrigger>
+            <TabsTrigger value="revenue" className="gap-1.5 text-xs"><DollarSign className="h-3.5 w-3.5" />Revenue</TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-1.5 text-xs"><Activity className="h-3.5 w-3.5" />Analytics</TabsTrigger>
+          </TabsList>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-1.5">Financial</p>
+          <TabsList className="flex-wrap h-auto gap-1 bg-transparent mb-2">
+            <TabsTrigger value="withdrawals" className="gap-1.5 text-xs"><ArrowDownCircle className="h-3.5 w-3.5" />Withdrawals</TabsTrigger>
+            <TabsTrigger value="wallets" className="gap-1.5 text-xs"><WalletCards className="h-3.5 w-3.5" />Wallets</TabsTrigger>
+          </TabsList>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-1.5">Content & Config</p>
+          <TabsList className="flex-wrap h-auto gap-1 bg-transparent mb-2">
+            <TabsTrigger value="ads" className="gap-1.5 text-xs"><Megaphone className="h-3.5 w-3.5" />Ads</TabsTrigger>
+            <TabsTrigger value="moderation" className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Moderation</TabsTrigger>
+            <TabsTrigger value="cms" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" />CMS</TabsTrigger>
+            <TabsTrigger value="menus" className="gap-1.5 text-xs"><Menu className="h-3.5 w-3.5" />Menus</TabsTrigger>
+          </TabsList>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-1.5">Settings & Control</p>
+          <TabsList className="flex-wrap h-auto gap-1 bg-transparent">
+            <TabsTrigger value="features" className="gap-1.5 text-xs"><ToggleLeft className="h-3.5 w-3.5" />Features</TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-1.5 text-xs"><Bell className="h-3.5 w-3.5" />Notifications</TabsTrigger>
+            <TabsTrigger value="plans" className="gap-1.5 text-xs"><Crown className="h-3.5 w-3.5" />Plans</TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5 text-xs"><Settings className="h-3.5 w-3.5" />Settings</TabsTrigger>
+            <TabsTrigger value="audit" className="gap-1.5 text-xs"><ClipboardList className="h-3.5 w-3.5" />Audit Logs</TabsTrigger>
+            <TabsTrigger value="security" className="gap-1.5 text-xs"><Shield className="h-3.5 w-3.5" />Security</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview"><OverviewTab stats={stats} /></TabsContent>
         <TabsContent value="users"><UsersTab /></TabsContent>
         <TabsContent value="revenue"><RevenueTab /></TabsContent>
-        <TabsContent value="withdrawals"><WithdrawalsTab /></TabsContent>
-        <TabsContent value="ads"><AdsTab /></TabsContent>
         <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
+        <TabsContent value="withdrawals"><WithdrawalsTab /></TabsContent>
+        <TabsContent value="wallets"><WalletMgmtTab /></TabsContent>
+        <TabsContent value="ads"><AdsTab /></TabsContent>
         <TabsContent value="moderation"><ModerationTab /></TabsContent>
+        <TabsContent value="cms"><CmsTab /></TabsContent>
+        <TabsContent value="menus"><MenuBuilderTab /></TabsContent>
+        <TabsContent value="features"><FeatureFlagsTab /></TabsContent>
         <TabsContent value="notifications"><NotificationsTab /></TabsContent>
         <TabsContent value="plans"><PlansTab /></TabsContent>
         <TabsContent value="settings"><SettingsTab /></TabsContent>
+        <TabsContent value="audit"><AuditLogsTab /></TabsContent>
+        <TabsContent value="security"><SecurityTab /></TabsContent>
       </Tabs>
     </div>
   );

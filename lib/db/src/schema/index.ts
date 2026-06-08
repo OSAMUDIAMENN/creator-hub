@@ -22,3 +22,7 @@ export * from "./ads";
 export * from "./marketplace";
 export * from "./platform_settings";
 export * from "./referrals";
+export * from "./feature_flags";
+export * from "./audit_logs";
+export * from "./cms_content";
+export * from "./menu_items";
