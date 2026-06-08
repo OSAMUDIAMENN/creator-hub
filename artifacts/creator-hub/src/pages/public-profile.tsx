@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MessageCircle, ExternalLink, Share2, ShoppingBag, Loader2, Download, Eye, Star } from "lucide-react";
+import { MessageCircle, ExternalLink, Share2, ShoppingBag, Loader2, Download, Eye, Star, Play, FileText as FilePdf, ImageIcon, Film, Archive, FileType } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SponsoredCard } from "@/components/ui/ad-slot";
 
@@ -31,6 +31,63 @@ type Product = {
   imageUrl?: string | null;
   fileUrl?: string | null;
 };
+
+function detectFileType(url?: string | null): "image" | "video" | "audio" | "pdf" | "zip" | "doc" | "unknown" {
+  if (!url) return "unknown";
+  const lower = url.toLowerCase().split("?")[0];
+  if (/\.(jpg|jpeg|png|gif|webp|svg)$/.test(lower)) return "image";
+  if (/\.(mp4|webm|ogg|mov|avi|mkv)$/.test(lower)) return "video";
+  if (/\.(mp3|wav|aac|ogg|flac)$/.test(lower)) return "audio";
+  if (/\.pdf$/.test(lower)) return "pdf";
+  if (/\.(zip|rar|7z|tar|gz)$/.test(lower)) return "zip";
+  if (/\.(doc|docx|txt|rtf|odt)$/.test(lower)) return "doc";
+  return "unknown";
+}
+
+function FileTypePreview({ fileUrl, productName }: { fileUrl?: string | null; productName: string }) {
+  const type = detectFileType(fileUrl);
+  if (type === "video") {
+    return (
+      <div className="rounded-xl overflow-hidden bg-black">
+        <video
+          src={fileUrl!}
+          controls
+          preload="metadata"
+          className="w-full max-h-48 object-contain"
+        >
+          Your browser does not support video preview.
+        </video>
+        <p className="text-[10px] text-white/50 text-center py-1">Preview clip — full file available after purchase</p>
+      </div>
+    );
+  }
+  const iconMap = {
+    pdf: <FilePdf className="h-10 w-10 text-red-500" />,
+    zip: <Archive className="h-10 w-10 text-yellow-500" />,
+    doc: <FileType className="h-10 w-10 text-blue-500" />,
+    audio: <Play className="h-10 w-10 text-purple-500" />,
+    image: <ImageIcon className="h-10 w-10 text-green-500" />,
+    unknown: <Film className="h-10 w-10 text-muted-foreground" />,
+  };
+  const labelMap = {
+    pdf: "PDF Document",
+    zip: "ZIP Archive",
+    doc: "Document",
+    audio: "Audio File",
+    image: "Image File",
+    unknown: "Digital File",
+  };
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 py-6">
+      {iconMap[type as keyof typeof iconMap]}
+      <div className="text-center">
+        <p className="text-sm font-semibold">{labelMap[type as keyof typeof labelMap]}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{productName}</p>
+      </div>
+      <p className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Download after purchase</p>
+    </div>
+  );
+}
 
 type AdData = {
   id: number;
@@ -371,15 +428,17 @@ export default function PublicProfile() {
       {/* Product Preview Dialog */}
       <Dialog open={!!previewProduct} onOpenChange={(open) => { if (!open) setPreviewProduct(null); }}>
         <DialogContent className="max-w-sm p-0 overflow-hidden">
-          {previewProduct?.imageUrl && (
+          {/* Cover image or file-type preview */}
+          {previewProduct?.imageUrl ? (
             <div className="h-56 w-full overflow-hidden bg-muted">
-              <img
-                src={previewProduct.imageUrl}
-                alt={previewProduct.name}
-                className="w-full h-full object-cover"
-              />
+              <img src={previewProduct.imageUrl} alt={previewProduct.name} className="w-full h-full object-cover" />
             </div>
-          )}
+          ) : previewProduct?.fileUrl ? (
+            <div className="p-4 pb-0">
+              <FileTypePreview fileUrl={previewProduct.fileUrl} productName={previewProduct.name} />
+            </div>
+          ) : null}
+
           <div className="p-5 space-y-3">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-xl font-bold leading-tight">{previewProduct?.name}</h2>
@@ -390,33 +449,36 @@ export default function PublicProfile() {
             {previewProduct?.description && (
               <p className="text-sm text-muted-foreground leading-relaxed">{previewProduct.description}</p>
             )}
-            {previewProduct?.price === 0 && previewProduct?.fileUrl && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-                <Download className="h-3.5 w-3.5 text-primary" />
-                Digital download — available immediately after claiming
-              </div>
-            )}
-            {previewProduct?.price !== 0 && (
+
+            {/* File type badge */}
+            {previewProduct?.fileUrl && (() => {
+              const ft = detectFileType(previewProduct.fileUrl);
+              const labels: Record<string, string> = { pdf: "PDF Document", video: "Video File", audio: "Audio File", zip: "ZIP Archive", doc: "Document", image: "Image File", unknown: "Digital File" };
+              return (
+                <div className="flex items-center gap-2 text-xs font-medium bg-muted/60 rounded-lg px-3 py-2">
+                  <FileType className="h-3.5 w-3.5 text-primary" />
+                  {labels[ft]} · {previewProduct.price === 0 ? "Download immediately" : "Download link sent by email"}
+                </div>
+              );
+            })()}
+
+            {!previewProduct?.fileUrl && previewProduct?.price !== 0 && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
                 <Star className="h-3.5 w-3.5 text-primary" />
                 Digital product — download link sent to your email after payment
               </div>
             )}
           </div>
+
           <div className="px-5 pb-5 space-y-2">
-            <Button
-              className="w-full rounded-xl"
-              onClick={() => previewProduct && openCheckout(previewProduct)}
-            >
+            <Button className="w-full rounded-xl" onClick={() => previewProduct && openCheckout(previewProduct)}>
               {previewProduct?.price === 0 ? (
                 <><Download className="h-4 w-4 mr-2" />Download Free</>
               ) : (
                 <><ShoppingBag className="h-4 w-4 mr-2" />Buy Now — ₦{Number(previewProduct?.price ?? 0).toLocaleString()}</>
               )}
             </Button>
-            <Button variant="ghost" className="w-full" onClick={() => setPreviewProduct(null)}>
-              Back
-            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => setPreviewProduct(null)}>Back</Button>
           </div>
         </DialogContent>
       </Dialog>

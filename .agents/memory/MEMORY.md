@@ -8,3 +8,5 @@
 - [Super admin tabs](super-admin.md) — 6 new tabs in admin-super.tsx (FeatureFlags, MenuBuilder, CMS, AuditLogs, WalletMgmt, Security); API in admin-extended.ts; all admin actions write to audit_logs.
 - [Profile themes](profile-themes.md) — 5 themes (default/gradient/dark/minimal/vibrant) stored in profiles.theme DB field; settings picker saves immediately on click; public-profile reads theme and applies to wrapper+buttons.
 - [Referral guards](referral-guards.md) — existing creators (have referrals as referrer) blocked from applying codes; already-referred users blocked; wasReferred flag returned in /referral GET.
+- [Buyer info in sales](buyer-info-sales.md) — buyer name+email stored in transactions.metadata JSON on product purchase; GET /products/sales endpoint extracts them; store.tsx Sales tab shows buyer history table.
+- [Product file type detection](product-file-type.md) — detectFileType() helper infers type from fileUrl extension; video shows HTML5 player preview; others show icon+label; used in public-profile.tsx product preview dialog.

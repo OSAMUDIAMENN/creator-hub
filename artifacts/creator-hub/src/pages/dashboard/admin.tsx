@@ -118,6 +118,11 @@ function fmtBytes(b: number) {
   return `${(b / 1024 ** 3).toFixed(2)} GB`;
 }
 
+type WalletBreakdown = {
+  availableBalance: number; totalEarned: number; totalWithdrawn: number;
+  pendingWithdrawals: number; adRevenue: number; referralEarnings: number;
+  totalAdImpressions: number;
+};
 type ChartDay = { date: string; signups: number; revenue: number };
 
 function fmtShortDate(dateStr: string) {
@@ -147,6 +152,11 @@ function OverviewTab({ stats }: { stats: AdminStats | undefined }) {
   const { data: chartData = [], isLoading: chartLoading } = useQuery<ChartDay[]>({
     queryKey: ["/admin/revenue-chart", chartRange],
     queryFn: () => api(`/admin/revenue-chart?days=${chartRange}`),
+  });
+
+  const { data: walletBreakdown } = useQuery<WalletBreakdown>({
+    queryKey: ["/admin/wallet-breakdown"],
+    queryFn: () => api("/admin/wallet-breakdown"),
   });
 
   const formattedChart = chartData.map((d) => ({
@@ -184,6 +194,49 @@ function OverviewTab({ stats }: { stats: AdminStats | undefined }) {
         <StatCard icon={DollarSign} label="Transaction Volume" value={fmtNGN(stats.totalTransactionVolume)} color="text-green-600" />
         <StatCard icon={Megaphone} label="Active Ads" value={fmt(stats.activeAds)} color="text-orange-500" />
       </div>
+
+      {/* Creator Wallet Breakdown */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2"><Wallet className="h-4 w-4 text-green-600" />Creator Wallet Breakdown</CardTitle>
+          <CardDescription className="text-xs">Live balance across all creator accounts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!walletBreakdown ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Available Balance", value: fmtNGN(walletBreakdown.availableBalance), color: "text-green-600", bg: "bg-green-500/10", note: "withdrawable now" },
+                { label: "Pending Withdrawals", value: fmtNGN(walletBreakdown.pendingWithdrawals), color: "text-amber-600", bg: "bg-amber-500/10", note: "awaiting approval" },
+                { label: "Total Withdrawn", value: fmtNGN(walletBreakdown.totalWithdrawn), color: "text-blue-600", bg: "bg-blue-500/10", note: "all time" },
+                { label: "Total Earned", value: fmtNGN(walletBreakdown.totalEarned), color: "text-purple-600", bg: "bg-purple-500/10", note: "lifetime" },
+              ].map((item) => (
+                <div key={item.label} className={`rounded-xl p-3 ${item.bg}`}>
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className={`text-lg font-bold mt-0.5 ${item.color}`}>{item.value}</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">{item.note}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {walletBreakdown && (
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              {[
+                { label: "Ad Revenue Distributed", value: fmtNGN(walletBreakdown.adRevenue), note: `${fmt(walletBreakdown.totalAdImpressions)} impressions` },
+                { label: "Referral Earnings", value: fmtNGN(walletBreakdown.referralEarnings), note: "paid to referrers" },
+                { label: "Net Platform Balance", value: fmtNGN(walletBreakdown.totalEarned - walletBreakdown.totalWithdrawn - walletBreakdown.pendingWithdrawals), note: "held on platform" },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl p-3 bg-muted/40">
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="text-base font-bold mt-0.5">{item.value}</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">{item.note}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Revenue & Signups Chart */}
       <Card>

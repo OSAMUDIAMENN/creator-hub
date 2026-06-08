@@ -10,9 +10,9 @@ import {
   getListProductsQueryKey,
 } from "@workspace/api-client-react";
 import { Product } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -20,6 +20,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -45,10 +48,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, ShoppingBag, Package, Link2, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, ShoppingBag, Package, Link2, Upload, Users } from "lucide-react";
 import { FreemiumGate, FeatureUsageBadge } from "@/components/feature-limit";
 import { FileUploader } from "@/components/file-uploader";
 import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
+
+const BASE_URL_STORE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+type SaleRecord = {
+  id: number; reference: string; amount: number; currency: string;
+  description: string | null; buyerName: string | null; buyerEmail: string | null;
+  productId: number | null; createdAt: string;
+};
 
 const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -63,6 +74,14 @@ type ProductFormData = z.infer<typeof productSchema>;
 
 export default function StoreManager() {
   const { data: products, isLoading } = useListProducts();
+  const { data: sales, isLoading: salesLoading } = useQuery<SaleRecord[]>({
+    queryKey: ["product-sales"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE_URL_STORE}/api/products/sales`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load sales");
+      return res.json();
+    },
+  });
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -216,7 +235,75 @@ export default function StoreManager() {
         </Card>
       </div>
 
-      {/* Products Grid */}
+      {/* Products & Sales Tabs */}
+      <Tabs defaultValue="products">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="products" className="gap-1.5"><Package className="h-3.5 w-3.5" />Products</TabsTrigger>
+          <TabsTrigger value="sales" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" />Sales
+            {!!sales?.length && <Badge variant="secondary" className="ml-1 h-4 min-w-4 px-1 text-[10px]">{sales.length}</Badge>}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Sales Tab */}
+        <TabsContent value="sales" className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" /> Buyer History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {salesLoading ? (
+                <div className="p-4 space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
+              ) : !sales?.length ? (
+                <div className="text-center py-16 text-muted-foreground">
+                  <ShoppingBag className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium">No sales yet</p>
+                  <p className="text-sm opacity-60 mt-1">Your buyer history will appear here once you make your first sale.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Buyer</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {sales.map((s) => (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-medium">
+                            {s.buyerName || <span className="text-muted-foreground text-xs">Anonymous</span>}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {s.buyerEmail || "—"}
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[140px] truncate">
+                            {s.description?.replace(/^Sale:\s*/, "").replace(/\s*\(after.*$/, "") || "Product"}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-green-600">
+                            ₦{s.amount.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(s.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Products Tab */}
+        <TabsContent value="products" className="mt-4">
       <FreemiumGate feature="products" freeLimit={3} currentCount={products?.length ?? 0} proFeatures={["unlimited products", "advanced analytics"]}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
@@ -293,6 +380,8 @@ export default function StoreManager() {
         )}
       </div>
       </FreemiumGate>
+        </TabsContent>
+      </Tabs>
 
       {/* Product Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

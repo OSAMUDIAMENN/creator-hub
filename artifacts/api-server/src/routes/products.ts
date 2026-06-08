@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, productsTable, profilesTable } from "@workspace/db";
+import { eq, desc, and } from "drizzle-orm";
+import { db, productsTable, profilesTable, transactionsTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 import {
   CreateProductBody,
@@ -35,6 +35,39 @@ function mapProduct(p: typeof productsTable.$inferSelect) {
     createdAt: p.createdAt.toISOString(),
   };
 }
+
+router.get("/products/sales", requireAuth(), async (req, res): Promise<void> => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const profileId = await getUserProfileId(userId);
+  if (!profileId) { res.json([]); return; }
+
+  const sales = await db
+    .select()
+    .from(transactionsTable)
+    .where(and(eq(transactionsTable.userId, profileId), eq(transactionsTable.type, "earning"), eq(transactionsTable.status, "completed")))
+    .orderBy(desc(transactionsTable.createdAt))
+    .limit(200);
+
+  const result = sales.map((s) => {
+    let meta: { productId?: number; buyerEmail?: string; buyerName?: string } = {};
+    try { meta = JSON.parse(s.metadata as string ?? "{}"); } catch {}
+    return {
+      id: s.id,
+      reference: s.reference,
+      amount: Number(s.amount),
+      currency: s.currency,
+      description: s.description,
+      buyerName: meta.buyerName ?? null,
+      buyerEmail: meta.buyerEmail ?? null,
+      productId: meta.productId ?? null,
+      createdAt: s.createdAt.toISOString(),
+    };
+  });
+
+  res.json(result);
+});
 
 router.get("/products", requireAuth(), async (req, res): Promise<void> => {
   const { userId } = getAuth(req);

@@ -10,6 +10,7 @@ import {
   walletsTable,
   uploadsTable,
   adsTable,
+  adImpressionsTable,
   marketplaceListingsTable,
   platformSettingsTable,
   notificationsTable,
@@ -82,6 +83,39 @@ router.get("/admin/stats", requireAuth(), requireAdmin, async (req: Request, res
     totalCompletedTransactions: totalTransactionsResult.count,
     totalTransactionVolume: Number(totalTransactionsResult.total ?? 0),
     activeAds: totalAdsResult.count,
+  });
+});
+
+// ── Wallet Balance Breakdown ──────────────────────────────────────────────────
+router.get("/admin/wallet-breakdown", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const [wallets] = await db.select({
+    totalBalance: sum(walletsTable.balance),
+    totalEarned: sum(walletsTable.totalEarned),
+    totalWithdrawn: sum(walletsTable.totalWithdrawn),
+  }).from(walletsTable);
+
+  const [pendingWithdrawals] = await db.select({ total: sum(withdrawalsTable.amount) })
+    .from(withdrawalsTable).where(eq(withdrawalsTable.status, "pending"));
+
+  const [adEarnings] = await db.select({ total: sum(transactionsTable.amount) })
+    .from(transactionsTable).where(eq(transactionsTable.type, "earning"));
+
+  const [referralEarnings] = await db.select({ total: sum(transactionsTable.amount) })
+    .from(transactionsTable).where(eq(transactionsTable.type, "referral"));
+
+  const [productEarnings] = await db.select({ total: sum(transactionsTable.amount) })
+    .from(transactionsTable).where(and(eq(transactionsTable.type, "earning"), eq(transactionsTable.status, "completed")));
+
+  const [totalImpressions] = await db.select({ count: count() }).from(adImpressionsTable);
+
+  res.json({
+    availableBalance: Number(wallets?.totalBalance ?? 0),
+    totalEarned: Number(wallets?.totalEarned ?? 0),
+    totalWithdrawn: Number(wallets?.totalWithdrawn ?? 0),
+    pendingWithdrawals: Number(pendingWithdrawals?.total ?? 0),
+    adRevenue: Number(adEarnings?.total ?? 0),
+    referralEarnings: Number(referralEarnings?.total ?? 0),
+    totalAdImpressions: Number(totalImpressions?.count ?? 0),
   });
 });
 

@@ -86,6 +86,24 @@ router.get("/openai/conversations/:id", requireAuth(), async (req, res): Promise
   });
 });
 
+router.patch("/openai/conversations/:id", requireAuth(), async (req, res): Promise<void> => {
+  const { userId } = getAuth(req);
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0] : req.params.id, 10);
+  const { title } = req.body as { title?: string };
+  if (!title || !title.trim()) { res.status(400).json({ error: "Title is required" }); return; }
+
+  const [updated] = await db
+    .update(conversationsTable)
+    .set({ title: title.trim() })
+    .where(eq(conversationsTable.id, id))
+    .returning();
+
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  res.json({ id: updated.id, title: updated.title, createdAt: updated.createdAt.toISOString() });
+});
+
 router.delete("/openai/conversations/:id", requireAuth(), async (req, res): Promise<void> => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }

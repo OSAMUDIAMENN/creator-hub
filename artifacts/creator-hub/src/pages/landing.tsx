@@ -183,6 +183,58 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Dashboard Mockup Preview */}
+              <div
+                className="w-full max-w-2xl mx-auto mt-4 rounded-2xl border border-border bg-background/80 shadow-2xl shadow-primary/10 overflow-hidden"
+                style={{ animation: "fadeInUp 0.8s ease 0.5s both" }}
+              >
+                {/* Window chrome */}
+                <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border bg-muted/40">
+                  <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
+                  <div className="flex-1 mx-3 h-5 rounded-md bg-muted text-[10px] flex items-center justify-center text-muted-foreground/60">creatorhub.app/dashboard</div>
+                </div>
+                {/* Dashboard content preview */}
+                <div className="p-4 space-y-3 bg-background">
+                  {/* Stat cards row */}
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: "Wallet", val: "₦24,500", color: "text-green-500 bg-green-500/10" },
+                      { label: "Sales", val: "12", color: "text-blue-500 bg-blue-500/10" },
+                      { label: "Links", val: "8", color: "text-purple-500 bg-purple-500/10" },
+                      { label: "AI Credits", val: "80", color: "text-primary bg-primary/10" },
+                    ].map((c) => (
+                      <div key={c.label} className={`rounded-xl p-2.5 ${c.color.split(" ")[1]}`}>
+                        <p className="text-[10px] text-muted-foreground">{c.label}</p>
+                        <p className={`text-sm font-bold ${c.color.split(" ")[0]}`}>{c.val}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Mini chart bar */}
+                  <div className="rounded-xl border border-border p-3">
+                    <p className="text-[10px] text-muted-foreground mb-2">Revenue this week</p>
+                    <div className="flex items-end gap-1 h-10">
+                      {[30, 55, 40, 80, 65, 90, 70].map((h, i) => (
+                        <div key={i} className="flex-1 rounded-sm bg-primary/70 transition-all" style={{ height: `${h}%` }} />
+                      ))}
+                    </div>
+                  </div>
+                  {/* Bottom row - product + AI */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl border border-border p-2.5 space-y-1.5">
+                      <p className="text-[10px] font-medium">Recent Sale</p>
+                      <p className="text-[10px] text-muted-foreground">Amaka bought <span className="font-semibold text-foreground">Branding Kit</span></p>
+                      <p className="text-[10px] text-green-500 font-bold">+₦3,920</p>
+                    </div>
+                    <div className="rounded-xl border border-border p-2.5 space-y-1.5 bg-primary/5 border-primary/20">
+                      <p className="text-[10px] font-medium flex items-center gap-1"><Sparkles className="h-2.5 w-2.5 text-primary" /> AI Assistant</p>
+                      <p className="text-[10px] text-muted-foreground line-clamp-2">Write me 5 viral hook ideas for my new course launch...</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -212,6 +264,41 @@ export default function LandingPage() {
                   </div>
                   <h3 className="text-lg font-bold mb-2">{feature.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonials */}
+        <section className="w-full py-20 md:py-28 flex justify-center">
+          <div className="container px-4 md:px-6">
+            <div className="text-center mb-14">
+              <div className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground mb-4">
+                <Users className="mr-1.5 h-3.5 w-3.5" /> Loved by creators
+              </div>
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">What creators are saying</h2>
+            </div>
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {[
+                { name: "Tolu Adesanya", handle: "@toludesigns", avatar: "TA", role: "Fashion & Lifestyle Creator · Lagos", text: "CreatorHub replaced three tools I was paying for separately. My link-in-bio, store, and AI caption writer all in one place — and I actually made money in my first week!" },
+                { name: "Chidi Okonkwo", handle: "@chidifitness", avatar: "CO", role: "Fitness Coach · Abuja", text: "The AI content suite is insane. I generate a week's worth of content in under 30 minutes. And the Paystack integration just works — money lands in my wallet instantly.", featured: true },
+                { name: "Amaka Nwosu", handle: "@amakacreates", avatar: "AN", role: "Digital Artist · Port Harcourt", text: "I sold 50 digital art packs in my first month. The checkout is smooth, buyers get their files instantly, and I track everything from one dashboard. Highly recommend!" },
+              ].map((t) => (
+                <div
+                  key={t.name}
+                  className={`rounded-2xl p-6 flex flex-col gap-4 ${t.featured ? "bg-primary/5 border-2 border-primary/20 shadow-lg shadow-primary/5" : "bg-background border border-border"}`}
+                >
+                  <p className="text-sm text-foreground/80 leading-relaxed flex-1">"{t.text}"</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${t.featured ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+                      {t.avatar}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold leading-tight">{t.name}</p>
+                      <p className="text-xs text-muted-foreground">{t.role}</p>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
