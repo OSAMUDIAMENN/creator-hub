@@ -8,6 +8,7 @@ import {
   verifyTransaction,
   verifyWebhookSignature,
 } from "../lib/paystack";
+import { sendCreatorSaleNotification, sendBuyerConfirmation } from "../lib/email.js";
 
 const router: IRouter = Router();
 
@@ -167,7 +168,7 @@ router.get("/paystack/credits-callback", async (req: Request, res: Response): Pr
 // ─── Product checkout ─────────────────────────────────────────────────────────
 
 router.post("/paystack/product/:id/checkout", async (req: Request, res: Response): Promise<void> => {
-  const productId = parseInt(req.params.id, 10);
+  const productId = parseInt(req.params.id as string, 10);
   if (isNaN(productId)) { res.status(400).json({ error: "Invalid product ID" }); return; }
 
   const { email, buyerName } = req.body as { email?: string; buyerName?: string };
@@ -712,6 +713,37 @@ async function fulfillProductPurchase(
     message: `${buyerDisplay}${emailDisplay} just bought "${product?.name ?? "your product"}" for ₦${amountNgn.toLocaleString("en-NG")}. You earned ₦${creatorEarnings.toLocaleString("en-NG", { maximumFractionDigits: 2 })}.`,
     data: JSON.stringify({ productId, buyerEmail, buyerName, amount: creatorEarnings, reference }),
   });
+
+  // Send email notifications (graceful — skips if RESEND_API_KEY not set)
+  const [creator] = await db
+    .select({ email: profilesTable.email, name: profilesTable.name })
+    .from(profilesTable)
+    .where(eq(profilesTable.id, creatorUserId));
+
+  if (creator?.email) {
+    await sendCreatorSaleNotification({
+      creatorEmail: creator.email,
+      creatorName: creator.name ?? "Creator",
+      productName: product?.name ?? "Product",
+      buyerName: buyerDisplay,
+      buyerEmail,
+      amountNgn,
+      creatorEarnings,
+      reference,
+    });
+  }
+
+  if (buyerEmail) {
+    await sendBuyerConfirmation({
+      buyerEmail,
+      buyerName: buyerName ?? "Customer",
+      productName: product?.name ?? "Product",
+      creatorName: creator?.name ?? "Creator",
+      fileUrl: (product as any)?.fileUrl ?? null,
+      amountNgn,
+      reference,
+    });
+  }
 }
 
 export default router;

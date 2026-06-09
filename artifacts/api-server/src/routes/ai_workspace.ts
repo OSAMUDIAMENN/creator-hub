@@ -26,7 +26,7 @@ router.get("/ai-workspace/saved", requireAuth(), async (req, res): Promise<void>
     .limit(100);
 
   const rows = await query;
-  res.json(rows.map((r) => ({ id: r.id, type: r.type, title: r.title, content: r.content, createdAt: r.createdAt.toISOString() })));
+  res.json(rows.map((r: any) => ({ id: r.id, type: r.type, title: r.title, content: r.content, createdAt: r.createdAt.toISOString() })));
 });
 
 router.post("/ai-workspace/saved", requireAuth(), async (req, res): Promise<void> => {
@@ -54,7 +54,7 @@ router.delete("/ai-workspace/saved/:id", requireAuth(), async (req, res): Promis
   const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.clerkId, clerkId));
   if (!profile) { res.status(404).json({ error: "Profile not found" }); return; }
 
-  const id = parseInt(req.params.id ?? "0");
+  const id = parseInt((req.params.id as string) ?? "0");
   await db
     .delete(aiSavedGenerationsTable)
     .where(and(eq(aiSavedGenerationsTable.id, id), eq(aiSavedGenerationsTable.userId, profile.id)));

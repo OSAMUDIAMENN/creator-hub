@@ -191,7 +191,7 @@ export default function TeamsPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Team Management</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Team Management</h1>
           <p className="text-muted-foreground mt-1">Collaborate with your team members.</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>

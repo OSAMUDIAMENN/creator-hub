@@ -144,7 +144,7 @@ export default function LinksManager() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Links</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Links</h1>
             <FeatureUsageBadge current={links?.length ?? 0} limit={5} label="links" />
           </div>
           <p className="text-muted-foreground mt-1">Manage your public bio links.</p>

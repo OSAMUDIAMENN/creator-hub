@@ -46,7 +46,7 @@ router.get("/transactions", requireAuth(), async (req, res): Promise<void> => {
 
   const transactions = await txQuery;
   res.json(
-    transactions.map((t) => ({
+    transactions.map((t: any) => ({
       id: t.id,
       type: t.type,
       amount: Number(t.amount),

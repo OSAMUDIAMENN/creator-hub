@@ -711,7 +711,7 @@ export default function ContentPlanner() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Content Planner</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Content Planner</h1>
           <p className="text-muted-foreground mt-1">Schedule and auto-publish across all your platforms.</p>
         </div>
         <Button onClick={() => handleOpenForm()} className="w-full sm:w-auto">

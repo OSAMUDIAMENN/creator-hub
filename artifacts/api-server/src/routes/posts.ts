@@ -54,10 +54,10 @@ router.get("/posts", requireAuth(), async (req, res): Promise<void> => {
 
   let filtered = posts;
   if (queryParams.success && queryParams.data.platform) {
-    filtered = filtered.filter((p) => p.platform === queryParams.data.platform);
+    filtered = filtered.filter((p: any) => p.platform === queryParams.data.platform);
   }
   if (queryParams.success && queryParams.data.status) {
-    filtered = filtered.filter((p) => p.status === queryParams.data.status);
+    filtered = filtered.filter((p: any) => p.status === queryParams.data.status);
   }
 
   res.json(filtered.map(mapPost));

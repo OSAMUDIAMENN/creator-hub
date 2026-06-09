@@ -23,7 +23,7 @@ router.get("/notifications", requireAuth(), async (req, res): Promise<void> => {
     .orderBy(desc(notificationsTable.createdAt))
     .limit(50);
 
-  res.json(items.map((n) => ({
+  res.json(items.map((n: any) => ({
     id: n.id,
     type: n.type,
     title: n.title,
@@ -51,7 +51,7 @@ router.get("/notifications/unread-count", requireAuth(), async (req, res): Promi
 router.patch("/notifications/:id/read", requireAuth(), async (req, res): Promise<void> => {
   const { userId } = getAuth(req);
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
 
   await db
     .update(notificationsTable)

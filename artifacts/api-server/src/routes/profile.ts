@@ -127,7 +127,7 @@ router.get("/profile/public/:username", async (req, res): Promise<void> => {
     profileImage: profile.profileImage,
     whatsappNumber: profile.whatsappNumber,
     theme: profile.theme,
-    links: links.map((l) => ({
+    links: links.map((l: any) => ({
       id: l.id,
       userId: l.userId,
       title: l.title,
@@ -138,7 +138,7 @@ router.get("/profile/public/:username", async (req, res): Promise<void> => {
       isActive: l.isActive,
       createdAt: l.createdAt.toISOString(),
     })),
-    products: products.map((p) => ({
+    products: products.map((p: any) => ({
       id: p.id,
       userId: p.userId,
       name: p.name,

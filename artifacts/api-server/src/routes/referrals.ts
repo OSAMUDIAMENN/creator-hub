@@ -58,10 +58,10 @@ router.get("/referral", requireAuth(), async (req: Request, res: Response): Prom
     .from(referralsTable)
     .where(eq(referralsTable.referrerId, profile.id));
 
-  const converted = allReferrals.filter((r) => r.status === "converted" || r.status === "rewarded");
-  const rewarded = allReferrals.filter((r) => r.status === "rewarded");
-  const totalEarned = rewarded.reduce((sum, r) => sum + Number(r.rewardAmount), 0);
-  const pendingEarnings = converted.reduce((sum, r) => sum + Number(r.rewardAmount), 0);
+  const converted = allReferrals.filter((r: any) => r.status === "converted" || r.status === "rewarded");
+  const rewarded = allReferrals.filter((r: any) => r.status === "rewarded");
+  const totalEarned = rewarded.reduce((sum: number, r: any) => sum + Number(r.rewardAmount), 0);
+  const pendingEarnings = converted.reduce((sum: number, r: any) => sum + Number(r.rewardAmount), 0);
 
   const proto = req.headers["x-forwarded-proto"] ?? "https";
   const host = req.get("host") ?? "";
@@ -74,25 +74,25 @@ router.get("/referral", requireAuth(), async (req: Request, res: Response): Prom
     .where(and(eq(referralsTable.refereeId, profile.id)));
 
   // Fetch referee profiles for history enrichment
-  const referralList = allReferrals.filter((r) => r.refereeId !== null);
-  const refereeIds = referralList.map((r) => r.refereeId!);
+  const referralList = allReferrals.filter((r: any) => r.refereeId !== null);
+  const refereeIds = referralList.map((r: any) => r.refereeId!);
   const refereeProfiles = refereeIds.length
     ? await db.select({ id: profilesTable.id, name: profilesTable.name, username: profilesTable.username })
         .from(profilesTable)
         .where(eq(profilesTable.id, refereeIds[0])) // handled in map below
         .then(() =>
           Promise.all(
-            refereeIds.map((id) =>
+            refereeIds.map((id: any) =>
               db.select({ id: profilesTable.id, name: profilesTable.name, username: profilesTable.username })
                 .from(profilesTable)
                 .where(eq(profilesTable.id, id))
-                .then((rows) => rows[0])
+                .then((rows: any) => rows[0])
             )
           )
         )
     : [];
 
-  const refereeMap = new Map(refereeProfiles.filter(Boolean).map((p) => [p.id, p]));
+  const refereeMap = new Map(refereeProfiles.filter(Boolean).map((p: any) => [p.id, p]));
 
   res.json({
     code: myCode,
@@ -102,8 +102,8 @@ router.get("/referral", requireAuth(), async (req: Request, res: Response): Prom
     totalEarned,
     pendingEarnings,
     wasReferred: !!wasReferredRow,
-    referrals: referralList.map((r) => {
-      const referee = refereeMap.get(r.refereeId!);
+    referrals: referralList.map((r: any) => {
+      const referee = refereeMap.get(r.refereeId!) as { id: number; name: string; username: string } | undefined;
       return {
         id: r.id,
         status: r.status,

@@ -88,7 +88,7 @@ router.get("/admin/withdrawals", requireAuth(), async (req, res): Promise<void> 
   const status = req.query.status as string | undefined;
   const query = db.select().from(withdrawalsTable).orderBy(desc(withdrawalsTable.createdAt));
   const withdrawals = await query;
-  const filtered = status ? withdrawals.filter((w) => w.status === status) : withdrawals;
+  const filtered = status ? withdrawals.filter((w: any) => w.status === status) : withdrawals;
   res.json(filtered.map(formatWithdrawal));
 });
 

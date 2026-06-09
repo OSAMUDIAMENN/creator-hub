@@ -186,7 +186,7 @@ export default function StoreManager() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-bold tracking-tight">Store</h1>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Store</h1>
             <FeatureUsageBadge current={products?.length ?? 0} limit={3} label="products" />
           </div>
           <p className="text-muted-foreground mt-1">Manage your digital products and files.</p>

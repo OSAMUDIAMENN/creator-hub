@@ -50,7 +50,7 @@ router.get("/products/sales", requireAuth(), async (req, res): Promise<void> => 
     .orderBy(desc(transactionsTable.createdAt))
     .limit(200);
 
-  const result = sales.map((s) => {
+  const result = sales.map((s: any) => {
     let meta: { productId?: number; buyerEmail?: string; buyerName?: string } = {};
     try { meta = JSON.parse(s.metadata as string ?? "{}"); } catch {}
     return {

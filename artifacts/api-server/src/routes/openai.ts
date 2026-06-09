@@ -25,7 +25,7 @@ router.get("/openai/conversations", requireAuth(), async (req, res): Promise<voi
     .where(eq(conversationsTable.clerkUserId, userId));
 
   res.json(
-    convos.map((c) => ({
+    convos.map((c: any) => ({
       id: c.id,
       title: c.title,
       createdAt: c.createdAt.toISOString(),
@@ -76,7 +76,7 @@ router.get("/openai/conversations/:id", requireAuth(), async (req, res): Promise
     id: convo.id,
     title: convo.title,
     createdAt: convo.createdAt.toISOString(),
-    messages: msgs.map((m) => ({
+    messages: msgs.map((m: any) => ({
       id: m.id,
       conversationId: m.conversationId,
       role: m.role,
@@ -131,7 +131,7 @@ router.get("/openai/conversations/:id/messages", requireAuth(), async (req, res)
     .where(eq(messagesTable.conversationId, params.data.id));
 
   res.json(
-    msgs.map((m) => ({
+    msgs.map((m: any) => ({
       id: m.id,
       conversationId: m.conversationId,
       role: m.role,
@@ -162,7 +162,7 @@ router.post("/openai/conversations/:id/messages", requireAuth(), async (req, res
     .from(messagesTable)
     .where(eq(messagesTable.conversationId, params.data.id));
 
-  const chatMessages = history.map((m) => ({
+  const chatMessages = history.map((m: any) => ({
     role: m.role as "user" | "assistant",
     content: m.content,
   }));

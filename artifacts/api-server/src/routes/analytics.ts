@@ -33,10 +33,10 @@ router.get("/analytics/summary", requireAuth(), async (req, res): Promise<void> 
   const links = await db.select().from(linksTable).where(eq(linksTable.userId, profileId));
   const products = await db.select().from(productsTable).where(eq(productsTable.userId, profileId));
 
-  const totalLinkClicks = links.reduce((acc, l) => acc + l.clicks, 0);
-  const activeLinks = links.filter((l) => l.isActive).length;
-  const totalSales = products.reduce((acc, p) => acc + p.salesCount, 0);
-  const totalRevenue = products.reduce((acc, p) => acc + Number(p.price) * p.salesCount, 0);
+  const totalLinkClicks = links.reduce((acc: number, l: any) => acc + l.clicks, 0);
+  const activeLinks = links.filter((l: any) => l.isActive).length;
+  const totalSales = products.reduce((acc: number, p: any) => acc + p.salesCount, 0);
+  const totalRevenue = products.reduce((acc: number, p: any) => acc + Number(p.price) * p.salesCount, 0);
 
   res.json({
     totalLinkClicks,
@@ -63,7 +63,7 @@ router.get("/analytics/top-links", requireAuth(), async (req, res): Promise<void
     .limit(10);
 
   res.json(
-    links.map((l) => ({
+    links.map((l: any) => ({
       id: l.id,
       title: l.title,
       url: l.url,

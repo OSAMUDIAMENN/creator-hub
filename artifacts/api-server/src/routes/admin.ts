@@ -192,7 +192,7 @@ router.get("/admin/users", requireAuth(), requireAdmin, async (req: Request, res
   const allProfiles = await db.select().from(profilesTable).orderBy(desc(profilesTable.createdAt)).limit(limit).offset(offset);
 
   const result = await Promise.all(
-    allProfiles.map(async (p) => {
+    allProfiles.map(async (p: any) => {
       const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, p.id));
       const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, p.id));
       const [pendingAmt] = await db
@@ -221,7 +221,7 @@ router.get("/admin/users", requireAuth(), requireAdmin, async (req: Request, res
 });
 
 router.patch("/admin/users/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const userId = parseInt(req.params.id, 10);
+  const userId = parseInt(req.params.id as string, 10);
   const { isSuspended, isAdmin, role, name } = req.body as Record<string, unknown>;
   const updates: Record<string, unknown> = {};
   if (isSuspended !== undefined) updates.isSuspended = isSuspended;
@@ -235,7 +235,7 @@ router.patch("/admin/users/:id", requireAuth(), requireAdmin, async (req: Reques
 });
 
 router.delete("/admin/users/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const userId = parseInt(req.params.id, 10);
+  const userId = parseInt(req.params.id as string, 10);
   const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.id, userId));
   if (!profile) { res.status(404).json({ error: "User not found" }); return; }
   await db.delete(profilesTable).where(eq(profilesTable.id, userId));
@@ -243,7 +243,7 @@ router.delete("/admin/users/:id", requireAuth(), requireAdmin, async (req: Reque
 });
 
 router.post("/admin/users/:id/subscription", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const userId = parseInt(req.params.id, 10);
+  const userId = parseInt(req.params.id as string, 10);
   if (isNaN(userId)) { res.status(400).json({ error: "Invalid userId" }); return; }
   const { plan, periodDays, status } = req.body as { plan?: string; periodDays?: number; status?: string };
   const validPlans = ["free", "pro", "business"];
@@ -309,7 +309,7 @@ router.get("/admin/withdrawals", requireAuth(), requireAdmin, async (req: Reques
 });
 
 router.patch("/admin/withdrawals/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const { status, adminNotes } = req.body as { status?: string; adminNotes?: string };
   const updates: Record<string, unknown> = {};
   if (status) { updates.status = status; if (["approved", "completed", "rejected"].includes(status)) updates.processedAt = new Date(); }
@@ -322,7 +322,7 @@ router.patch("/admin/withdrawals/:id", requireAuth(), requireAdmin, async (req: 
 // ── Ads ──────────────────────────────────────────────────────────────────────
 router.get("/admin/ads", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const ads = await db.select().from(adsTable).orderBy(desc(adsTable.createdAt));
-  res.json(ads.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() })));
+  res.json(ads.map((a: any) => ({ ...a, createdAt: a.createdAt.toISOString() })));
 });
 
 router.post("/admin/ads", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -337,7 +337,7 @@ router.post("/admin/ads", requireAuth(), requireAdmin, async (req: Request, res:
 });
 
 router.patch("/admin/ads/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const { isActive, title, description, imageUrl, ctaUrl, ctaText, advertiserName, earningsPerImpression } = req.body as Record<string, unknown>;
   const updates: Record<string, unknown> = {};
   if (isActive !== undefined) updates.isActive = isActive;
@@ -354,7 +354,7 @@ router.patch("/admin/ads/:id", requireAuth(), requireAdmin, async (req: Request,
 });
 
 router.delete("/admin/ads/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   await db.delete(adsTable).where(eq(adsTable.id, id));
   res.status(204).send();
 });
@@ -387,7 +387,7 @@ router.get("/admin/analytics", requireAuth(), requireAdmin, async (req: Request,
     totalAiCalls: totalAiUsage.count,
     totalAiCreditsUsed: Number(totalAiUsage.totalCredits ?? 0),
     totalMarketplaceListings: totalListings.count,
-    aiByTool: aiByTool.map((r) => ({ tool: r.tool, credits: Number(r.total ?? 0), calls: r.count })),
+    aiByTool: aiByTool.map((r: any) => ({ tool: r.tool, credits: Number(r.total ?? 0), calls: r.count })),
   });
 });
 
@@ -407,11 +407,11 @@ router.get("/admin/uploads", requireAuth(), requireAdmin, async (req: Request, r
     userName: profilesTable.name,
     userEmail: profilesTable.email,
   }).from(uploadsTable).innerJoin(profilesTable, eq(uploadsTable.userId, profilesTable.id)).orderBy(desc(uploadsTable.createdAt)).limit(limit);
-  res.json(rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })));
+  res.json(rows.map((r: any) => ({ ...r, createdAt: r.createdAt.toISOString() })));
 });
 
 router.delete("/admin/uploads/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   await db.delete(uploadsTable).where(eq(uploadsTable.id, id));
   res.status(204).send();
 });
@@ -431,11 +431,11 @@ router.get("/admin/marketplace", requireAuth(), requireAdmin, async (req: Reques
     sellerName: profilesTable.name,
     sellerEmail: profilesTable.email,
   }).from(marketplaceListingsTable).innerJoin(profilesTable, eq(marketplaceListingsTable.sellerId, profilesTable.id)).orderBy(desc(marketplaceListingsTable.createdAt)).limit(200);
-  res.json(rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })));
+  res.json(rows.map((r: any) => ({ ...r, createdAt: r.createdAt.toISOString() })));
 });
 
 router.patch("/admin/marketplace/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const { isActive } = req.body as { isActive: boolean };
   await db.update(marketplaceListingsTable).set({ isActive }).where(eq(marketplaceListingsTable.id, id));
   res.json({ success: true });

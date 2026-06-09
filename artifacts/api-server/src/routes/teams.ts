@@ -18,7 +18,7 @@ router.get("/teams", requireAuth(), async (req, res): Promise<void> => {
     .from(teamMembersTable)
     .where(eq(teamMembersTable.userId, profile.id));
 
-  const teamIds = memberships.map((m) => m.teamId);
+  const teamIds = memberships.map((m: any) => m.teamId);
   if (teamIds.length === 0) { res.json([]); return; }
 
   const teams = await db
@@ -28,9 +28,9 @@ router.get("/teams", requireAuth(), async (req, res): Promise<void> => {
 
   // For each team, get member count
   const result = await Promise.all(
-    teams.map(async (team) => {
+    teams.map(async (team: any) => {
       const members = await db.select().from(teamMembersTable).where(eq(teamMembersTable.teamId, team.id));
-      const myMembership = memberships.find((m) => m.teamId === team.id);
+      const myMembership = memberships.find((m: any) => m.teamId === team.id);
       return {
         id: team.id,
         name: team.name,
@@ -95,7 +95,7 @@ router.get("/teams/:id", requireAuth(), async (req, res): Promise<void> => {
     .where(eq(teamMembersTable.teamId, teamId));
 
   const membersWithProfiles = await Promise.all(
-    members.map(async (m) => {
+    members.map(async (m: any) => {
       const [p] = await db.select().from(profilesTable).where(eq(profilesTable.id, m.userId));
       return {
         id: m.id,

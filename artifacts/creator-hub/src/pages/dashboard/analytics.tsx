@@ -46,7 +46,7 @@ export default function Analytics() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Analytics</h1>
         <p className="text-muted-foreground mt-1">Track your performance and growth.</p>
       </div>
 
@@ -144,6 +144,7 @@ export default function Analytics() {
                 {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
             ) : topLinks && topLinks.length > 0 ? (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -167,6 +168,7 @@ export default function Analytics() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <div className="text-center p-8 text-muted-foreground">
                 No link clicks recorded yet.

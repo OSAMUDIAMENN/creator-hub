@@ -84,7 +84,7 @@ const DEFAULT_FLAGS = [
 
 router.get("/admin/feature-flags", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const existing = await db.select().from(featureFlagsTable);
-  const existingKeys = new Set(existing.map((f) => f.key));
+  const existingKeys = new Set(existing.map((f: any) => f.key));
   const toSeed = DEFAULT_FLAGS.filter((f) => !existingKeys.has(f.key));
   if (toSeed.length > 0) {
     await db.insert(featureFlagsTable).values(toSeed);
@@ -94,7 +94,7 @@ router.get("/admin/feature-flags", requireAuth(), requireAdmin, async (req: Requ
 });
 
 router.patch("/admin/feature-flags/:key", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const { key } = req.params;
+  const key = req.params.key as string;
   const { status } = req.body as { status: string };
   const valid = ["enabled", "disabled", "premium_only", "beta", "invite_only"];
   if (!valid.includes(status)) { res.status(400).json({ error: "Invalid status" }); return; }
@@ -162,7 +162,7 @@ router.get("/admin/cms", requireAuth(), requireAdmin, async (req: Request, res: 
 });
 
 router.get("/admin/cms/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const [row] = await db.select().from(cmsContentTable).where(eq(cmsContentTable.id, id));
   if (!row) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...row, publishedAt: row.publishedAt?.toISOString() ?? null, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() });
@@ -187,7 +187,7 @@ router.post("/admin/cms", requireAuth(), requireAdmin, async (req: Request, res:
 });
 
 router.patch("/admin/cms/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const { title, content, excerpt, status } = req.body as Record<string, string>;
   const updates: Record<string, unknown> = {};
   if (title !== undefined) updates.title = title;
@@ -204,7 +204,7 @@ router.patch("/admin/cms/:id", requireAuth(), requireAdmin, async (req: Request,
 });
 
 router.delete("/admin/cms/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   await db.delete(cmsContentTable).where(eq(cmsContentTable.id, id));
   await writeAudit(req, "delete_cms_content", "cms_content", String(id));
   res.status(204).send();
@@ -219,7 +219,7 @@ router.get("/admin/menus", requireAuth(), requireAdmin, async (req: Request, res
   } else {
     rows = await db.select().from(menuItemsTable).orderBy(menuItemsTable.menuType, menuItemsTable.sortOrder);
   }
-  res.json(rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() })));
+  res.json(rows.map((r: any) => ({ ...r, createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString() })));
 });
 
 router.post("/admin/menus", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -241,7 +241,7 @@ router.post("/admin/menus", requireAuth(), requireAdmin, async (req: Request, re
 });
 
 router.patch("/admin/menus/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   const { label, url, icon, isExternal, isVisible, sortOrder } = req.body as Record<string, unknown>;
   const updates: Record<string, unknown> = {};
   if (label !== undefined) updates.label = label;
@@ -257,7 +257,7 @@ router.patch("/admin/menus/:id", requireAuth(), requireAdmin, async (req: Reques
 });
 
 router.delete("/admin/menus/:id", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   await db.delete(menuItemsTable).where(eq(menuItemsTable.id, id));
   await writeAudit(req, "delete_menu_item", "menu_items", String(id));
   res.status(204).send();
@@ -296,10 +296,10 @@ router.get("/admin/wallets", requireAuth(), requireAdmin, async (req: Request, r
 });
 
 router.patch("/admin/wallets/:userId", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const userId = parseInt(req.params.userId, 10);
+  const userId = parseInt(req.params.userId as string, 10);
   const { isFrozen, frozenReason, adjustAmount, adjustNote } = req.body as { isFrozen?: boolean; frozenReason?: string; adjustAmount?: number; adjustNote?: string };
 
-  let wallet = await db.select().from(walletsTable).where(eq(walletsTable.userId, userId)).then((r) => r[0]);
+  let wallet = await db.select().from(walletsTable).where(eq(walletsTable.userId, userId)).then((r: any) => r[0]);
   if (!wallet) {
     const [newWallet] = await db.insert(walletsTable).values({ userId }).returning();
     wallet = newWallet;
@@ -344,8 +344,8 @@ router.post("/admin/notifications/broadcast-targeted", requireAuth(), requireAdm
       .innerJoin(profilesTable, eq(walletsTable.userId, profilesTable.id))
       .innerJoin(subscriptionsTable, eq(subscriptionsTable.userId, profilesTable.id))
       .where(and(eq(subscriptionsTable.status, "active")));
-    const ids = new Set(subs.map((s) => s.userId));
-    profiles = Array.from(ids).map((id) => ({ id }));
+    const ids = new Set(subs.map((s: any) => s.userId as number));
+    profiles = (Array.from(ids) as number[]).map((id) => ({ id }));
   } else {
     profiles = await db.select({ id: profilesTable.id }).from(profilesTable);
   }
@@ -390,7 +390,7 @@ router.post("/admin/security/blocked-ips", requireAuth(), requireAdmin, async (r
 });
 
 router.delete("/admin/security/blocked-ips/:ip", requireAuth(), requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  const ip = decodeURIComponent(req.params.ip);
+  const ip = decodeURIComponent(req.params.ip as string);
   const [row] = await db.select().from(platformSettingsTable).where(eq(platformSettingsTable.key, "blocked_ips"));
   const ips: string[] = row ? JSON.parse(row.value) : [];
   const filtered = ips.filter((i) => i !== ip);

@@ -117,7 +117,7 @@ export default function MessagingPage() {
     return (
       <div className="animate-in fade-in duration-500">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-3">
             <MessageSquare className="h-8 w-8 text-primary" /> Team Messaging
           </h1>
           <p className="text-muted-foreground mt-1">Communicate and collaborate with your team.</p>
@@ -140,7 +140,7 @@ export default function MessagingPage() {
     <div className="animate-in fade-in duration-500 space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-3">
             <MessageSquare className="h-8 w-8 text-primary" /> Team Messaging
           </h1>
           <p className="text-muted-foreground mt-1">Communicate and collaborate with your team.</p>
@@ -149,22 +149,22 @@ export default function MessagingPage() {
 
       <DashboardAdBanner count={1} />
 
-      <div className="flex gap-4 flex-1 min-h-0" style={{ minHeight: "calc(100vh - 14rem)" }}>
-        {/* Team List Sidebar */}
-        <Card className="w-56 flex-shrink-0 flex flex-col overflow-hidden">
+      <div className="flex flex-col md:flex-row gap-3 flex-1 min-h-0" style={{ minHeight: "calc(100vh - 14rem)" }}>
+        {/* Team List Sidebar — compact strip on mobile, sidebar on desktop */}
+        <Card className="w-full md:w-52 flex-shrink-0 flex flex-col overflow-hidden">
           <CardHeader className="p-3 pb-2 border-b flex-shrink-0">
             <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               My Teams
             </CardTitle>
           </CardHeader>
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-0.5">
+          <ScrollArea className="flex-1 max-h-[100px] md:max-h-none">
+            <div className="p-2 space-y-0.5 flex md:flex-col flex-row gap-1 md:gap-0 overflow-x-auto md:overflow-x-visible">
               {(teams as { id: number; name: string }[]).map((team) => (
                 <button
                   key={team.id}
                   onClick={() => setSelectedTeamId(team.id)}
                   className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2",
+                    "shrink-0 md:w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2",
                     selectedTeamId === team.id
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-muted text-muted-foreground hover:text-foreground"

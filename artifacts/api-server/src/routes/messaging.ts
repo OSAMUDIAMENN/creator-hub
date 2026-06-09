@@ -39,7 +39,7 @@ router.get("/teams/:id/messages", requireAuth(), async (req, res): Promise<void>
     .orderBy(desc(teamMessagesTable.createdAt))
     .limit(100);
 
-  res.json(messages.reverse().map((m) => ({
+  res.json(messages.reverse().map((m: any) => ({
     ...m,
     createdAt: m.createdAt.toISOString(),
   })));
@@ -105,7 +105,7 @@ router.get("/teams/:id/activity", requireAuth(), async (req, res): Promise<void>
     .orderBy(desc(teamActivityTable.createdAt))
     .limit(50);
 
-  res.json(activity.map((a) => ({ ...a, createdAt: a.createdAt.toISOString() })));
+  res.json(activity.map((a: any) => ({ ...a, createdAt: a.createdAt.toISOString() })));
 });
 
 router.post("/teams/:id/activity", requireAuth(), async (req, res): Promise<void> => {

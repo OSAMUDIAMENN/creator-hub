@@ -89,7 +89,7 @@ router.get("/public-ads/active", async (req, res): Promise<void> => {
     }
   }
 
-  const formatted = activeAds.map((ad) => ({
+  const formatted = activeAds.map((ad: any) => ({
     id: ad.id,
     title: ad.title,
     description: ad.description,
@@ -118,12 +118,12 @@ router.get("/ads/earnings", requireAuth(), async (req, res): Promise<void> => {
     .from(adImpressionsTable)
     .where(eq(adImpressionsTable.creatorId, profile.id));
 
-  const adIds = [...new Set(impressions.map((i) => i.adId))];
+  const adIds = [...new Set(impressions.map((i: any) => i.adId))];
   let totalEarningsKobo = 0;
   for (const adId of adIds) {
     const [ad] = await db.select().from(adsTable).where(eq(adsTable.id, adId));
     if (ad) {
-      const count = impressions.filter((i) => i.adId === adId).length;
+      const count = impressions.filter((i: any) => i.adId === adId).length;
       totalEarningsKobo += count * ad.earningsPerImpression;
     }
   }
@@ -142,7 +142,7 @@ router.get("/admin/ads", requireAuth(), async (req, res): Promise<void> => {
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   const ads = await db.select().from(adsTable);
-  res.json(ads.map((a) => ({
+  res.json(ads.map((a: any) => ({
     id: a.id,
     title: a.title,
     description: a.description,

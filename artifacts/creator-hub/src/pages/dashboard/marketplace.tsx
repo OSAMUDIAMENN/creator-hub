@@ -231,7 +231,7 @@ export default function MarketplacePage() {
     <div className="animate-in fade-in duration-500 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-3">
             <ShoppingBag className="h-8 w-8 text-primary" /> Marketplace
           </h1>
           <p className="text-muted-foreground mt-1">Buy and sell creator services, templates, and shoutouts.</p>
