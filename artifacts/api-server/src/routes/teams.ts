@@ -96,6 +96,23 @@ router.get("/teams/:id", requireAuth(), async (req, res): Promise<void> => {
 
   const membersWithProfiles = await Promise.all(
     members.map(async (m: any) => {
+      // Pending invites: invitedEmail is set and userId points to the owner (placeholder)
+      if (m.invitedEmail) {
+        // Check if this is truly a pending invite (the profile's email doesn't match invitedEmail)
+        const [p] = await db.select().from(profilesTable).where(eq(profilesTable.id, m.userId));
+        const isPending = !p || p.email !== m.invitedEmail;
+        if (isPending) {
+          return {
+            id: m.id,
+            userId: null,
+            name: m.invitedEmail.split("@")[0],
+            email: m.invitedEmail,
+            role: m.role,
+            joinedAt: null,
+            pending: true,
+          };
+        }
+      }
       const [p] = await db.select().from(profilesTable).where(eq(profilesTable.id, m.userId));
       return {
         id: m.id,
@@ -104,6 +121,7 @@ router.get("/teams/:id", requireAuth(), async (req, res): Promise<void> => {
         email: p?.email ?? "",
         role: m.role,
         joinedAt: m.joinedAt?.toISOString() ?? null,
+        pending: false,
       };
     })
   );

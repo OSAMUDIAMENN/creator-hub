@@ -80,17 +80,8 @@ router.post("/withdrawals", requireAuth(), async (req, res): Promise<void> => {
   res.status(201).json(formatWithdrawal(withdrawal));
 });
 
-// Admin: list all withdrawals
-router.get("/admin/withdrawals", requireAuth(), async (req, res): Promise<void> => {
-  const { userId: clerkId } = getAuth(req);
-  if (!clerkId || !isAdmin(clerkId)) { res.status(403).json({ error: "Forbidden" }); return; }
-
-  const status = req.query.status as string | undefined;
-  const query = db.select().from(withdrawalsTable).orderBy(desc(withdrawalsTable.createdAt));
-  const withdrawals = await query;
-  const filtered = status ? withdrawals.filter((w: any) => w.status === status) : withdrawals;
-  res.json(filtered.map(formatWithdrawal));
-});
+// Admin GET /admin/withdrawals is handled by admin.ts (which joins user profiles).
+// This duplicate is intentionally removed to avoid shadowing that richer endpoint.
 
 // Admin: approve withdrawal
 router.post("/admin/withdrawals/:id/approve", requireAuth(), async (req, res): Promise<void> => {

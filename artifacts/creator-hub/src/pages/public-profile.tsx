@@ -165,7 +165,7 @@ export default function PublicProfile() {
 
   useEffect(() => {
     if (!username) return;
-    fetch(`${BASE_URL}/api/public-ads/active?limit=5`)
+    fetch(`${BASE_URL}/api/public-ads/active?limit=5&creatorUsername=${encodeURIComponent(username)}`)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setAds(data);
