@@ -127,6 +127,7 @@ router.get("/profile/public/:username", async (req, res): Promise<void> => {
     profileImage: profile.profileImage,
     whatsappNumber: profile.whatsappNumber,
     theme: profile.theme,
+    role: profile.role,
     links: links.map((l: any) => ({
       id: l.id,
       userId: l.userId,

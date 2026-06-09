@@ -29,7 +29,7 @@ import {
   Trash2, Ban, UserCheck, TrendingUp, Package, AlertTriangle, Globe, Image,
   ArrowUpRight, Wallet, Activity, HardDrive, Plus, Edit, ToggleLeft, ToggleRight,
   ArrowDownCircle, Bell, Send, Upload, Link2,
-  Menu, FileText, ClipboardList, WalletCards, Shield,
+  Menu, FileText, ClipboardList, WalletCards, Shield, BadgeCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -877,6 +877,114 @@ function AnalyticsTab() {
   );
 }
 
+// ── Verifications Tab ────────────────────────────────────────────────────────
+type VerificationRow = {
+  id: number; profileId: number; status: string; niche: string | null;
+  socialProof: string | null; followerCount: string | null; isVerified: boolean;
+  reason: string | null; submittedAt: string; reviewedAt: string | null;
+  name: string; username: string; email: string; profileImage: string | null;
+};
+
+function VerificationsTab() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [reason, setReason] = useState("");
+  const [activeId, setActiveId] = useState<number | null>(null);
+
+  const { data: rows = [], isLoading } = useQuery<VerificationRow[]>({
+    queryKey: ["/admin/verifications"],
+    queryFn: () => api("/admin/verifications"),
+  });
+
+  const decide = useMutation({
+    mutationFn: ({ id, status, reason }: { id: number; status: string; reason?: string }) =>
+      api(`/admin/verifications/${id}`, { method: "PATCH", body: JSON.stringify({ status, reason }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/admin/verifications"] });
+      toast({ title: "Verification updated" });
+      setActiveId(null);
+      setReason("");
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const pending = rows.filter((r) => r.status === "pending");
+  const reviewed = rows.filter((r) => r.status !== "pending");
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold">Creator Verifications</h3>
+          <p className="text-sm text-muted-foreground">{pending.length} pending review</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+      ) : rows.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <BadgeCheck className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p>No verification requests yet</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {[...pending, ...reviewed].map((row) => (
+            <Card key={row.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold">{row.name}</p>
+                      <span className="text-xs text-muted-foreground">@{row.username}</span>
+                      <Badge variant={row.status === "approved" ? "default" : row.status === "rejected" ? "destructive" : "secondary"} className="text-xs">
+                        {row.status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{row.email}</p>
+                    {row.niche && <p className="text-sm mt-1"><span className="font-medium">Niche:</span> {row.niche}</p>}
+                    {row.followerCount && <p className="text-sm"><span className="font-medium">Followers:</span> {row.followerCount}</p>}
+                    {row.socialProof && <p className="text-sm text-muted-foreground truncate">{row.socialProof}</p>}
+                    {row.reason && <p className="text-sm mt-1 text-muted-foreground italic">Note: {row.reason}</p>}
+                    <p className="text-xs text-muted-foreground mt-1">Submitted {new Date(row.submittedAt).toLocaleDateString()}</p>
+                  </div>
+
+                  {row.status === "pending" && (
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                      <Button size="sm" className="h-7 text-xs" onClick={() => decide.mutate({ id: row.id, status: "approved" })}>
+                        <CheckCircle className="h-3 w-3 mr-1" /> Approve
+                      </Button>
+                      <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={() => setActiveId(row.id)}>
+                        <XCircle className="h-3 w-3 mr-1" /> Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {activeId === row.id && (
+                  <div className="mt-3 space-y-2">
+                    <Input
+                      placeholder="Rejection reason (optional)"
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="destructive" onClick={() => decide.mutate({ id: row.id, status: "rejected", reason })}>
+                        Confirm Reject
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setActiveId(null); setReason(""); }}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Moderation Tab ──────────────────────────────────────────────────────────
 function ModerationTab() {
   const { toast } = useToast();
@@ -1377,6 +1485,7 @@ export default function AdminDashboard() {
           <TabsList className="flex-wrap h-auto gap-1 bg-transparent mb-2">
             <TabsTrigger value="ads" className="gap-1.5 text-xs"><Megaphone className="h-3.5 w-3.5" />Ads</TabsTrigger>
             <TabsTrigger value="moderation" className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" />Moderation</TabsTrigger>
+            <TabsTrigger value="verifications" className="gap-1.5 text-xs"><BadgeCheck className="h-3.5 w-3.5" />Verifications</TabsTrigger>
             <TabsTrigger value="cms" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" />CMS</TabsTrigger>
             <TabsTrigger value="menus" className="gap-1.5 text-xs"><Menu className="h-3.5 w-3.5" />Menus</TabsTrigger>
           </TabsList>
@@ -1399,6 +1508,7 @@ export default function AdminDashboard() {
         <TabsContent value="wallets"><WalletMgmtTab /></TabsContent>
         <TabsContent value="ads"><AdsTab /></TabsContent>
         <TabsContent value="moderation"><ModerationTab /></TabsContent>
+        <TabsContent value="verifications"><VerificationsTab /></TabsContent>
         <TabsContent value="cms"><CmsTab /></TabsContent>
         <TabsContent value="menus"><MenuBuilderTab /></TabsContent>
         <TabsContent value="features"><FeatureFlagsTab /></TabsContent>

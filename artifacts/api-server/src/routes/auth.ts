@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, profilesTable } from "@workspace/db";
+import { db, profilesTable, notificationsTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 
 const router: IRouter = Router();
@@ -59,6 +59,14 @@ router.post("/auth/provision", requireAuth(), async (req, res): Promise<void> =>
       email: email ?? `${userId}@placeholder.com`,
     })
     .returning();
+
+  await db.insert(notificationsTable).values({
+    userId: profile.id,
+    type: "welcome",
+    title: "Welcome to CreatorHub! 🎉",
+    message: "Your creator profile is ready. Add your links, upload products, and start growing your audience.",
+    data: JSON.stringify({ isNew: true }),
+  });
 
   res.status(201).json({
     id: profile.id,

@@ -30,6 +30,9 @@ import {
   Package,
   MessageSquare,
   Gift,
+  Search,
+  BookOpen,
+  BadgeCheck,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useGetProfile, useGetAiCredits, getGetProfileQueryKey } from "@workspace/api-client-react";
@@ -46,6 +49,9 @@ const NAV_ITEMS = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/links", icon: Link2, label: "Links" },
   { href: "/dashboard/store", icon: ShoppingBag, label: "Store" },
+  { href: "/dashboard/discover", icon: Search, label: "Discover" },
+  { href: "/dashboard/marketplace", icon: Package, label: "Marketplace" },
+  { href: "/dashboard/bookings", icon: BookOpen, label: "Bookings" },
   { href: "/dashboard/planner", icon: Calendar, label: "Planner" },
   { href: "/dashboard/ai", icon: Sparkles, label: "AI Assistant" },
   { href: "/dashboard/ai-chat", icon: Bot, label: "AI Chat" },
@@ -55,11 +61,11 @@ const NAV_ITEMS = [
   { href: "/dashboard/analytics", icon: BarChart2, label: "Analytics" },
   { href: "/dashboard/wallet", icon: Wallet, label: "Wallet" },
   { href: "/dashboard/pricing", icon: CreditCard, label: "Pricing" },
-  { href: "/dashboard/marketplace", icon: Package, label: "Marketplace" },
   { href: "/dashboard/teams", icon: Users, label: "Teams" },
   { href: "/dashboard/messaging", icon: MessageSquare, label: "Messaging" },
   { href: "/dashboard/social", icon: Share2, label: "Social Accounts" },
   { href: "/dashboard/referrals", icon: Gift, label: "Referrals & Earn" },
+  { href: "/dashboard/verify", icon: BadgeCheck, label: "Get Verified" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
   { href: "/dashboard/admin", icon: ShieldCheck, label: "Admin", adminOnly: true },
 ];

@@ -26,3 +26,5 @@ export * from "./feature_flags";
 export * from "./audit_logs";
 export * from "./cms_content";
 export * from "./menu_items";
+export * from "./bookings";
+export * from "./creator_verifications";

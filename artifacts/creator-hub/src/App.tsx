@@ -30,9 +30,14 @@ import AIWorkspacePage from "@/pages/dashboard/workspace";
 import MarketplacePage from "@/pages/dashboard/marketplace";
 import MessagingPage from "@/pages/dashboard/messaging";
 import ReferralsPage from "@/pages/dashboard/referrals";
+import BookingsPage from "@/pages/dashboard/bookings";
+import DiscoverPage from "@/pages/dashboard/discover";
+import VerifyPage from "@/pages/dashboard/verify";
+import OnboardingPage from "@/pages/dashboard/onboarding";
 import PublicProfile from "@/pages/public-profile";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { SubscriptionGuard } from "@/components/subscription-guard";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -161,66 +166,71 @@ function HomeRedirect() {
 function DashboardRoutes() {
   return (
     <DashboardLayout>
-      <Switch>
-        {/* Free-tier routes — no guard needed */}
-        <Route path="/dashboard" component={DashboardHome} />
-        <Route path="/dashboard/links" component={LinksManager} />
-        <Route path="/dashboard/store" component={StoreManager} />
-        <Route path="/dashboard/analytics" component={Analytics} />
-        <Route path="/dashboard/settings" component={Settings} />
-        <Route path="/dashboard/pricing" component={PricingPage} />
-        <Route path="/dashboard/wallet" component={WalletPage} />
-        <Route path="/dashboard/credits" component={CreditsPage} />
-        <Route path="/dashboard/admin" component={AdminDashboard} />
+      <ErrorBoundary>
+        <Switch>
+          {/* Free-tier routes — no guard needed */}
+          <Route path="/dashboard" component={DashboardHome} />
+          <Route path="/dashboard/links" component={LinksManager} />
+          <Route path="/dashboard/store" component={StoreManager} />
+          <Route path="/dashboard/analytics" component={Analytics} />
+          <Route path="/dashboard/settings" component={Settings} />
+          <Route path="/dashboard/pricing" component={PricingPage} />
+          <Route path="/dashboard/wallet" component={WalletPage} />
+          <Route path="/dashboard/credits" component={CreditsPage} />
+          <Route path="/dashboard/admin" component={AdminDashboard} />
+          <Route path="/dashboard/bookings" component={BookingsPage} />
+          <Route path="/dashboard/discover" component={DiscoverPage} />
+          <Route path="/dashboard/verify" component={VerifyPage} />
+          <Route path="/dashboard/marketplace" component={MarketplacePage} />
+          <Route path="/dashboard/referrals" component={ReferralsPage} />
 
-        {/* Pro+ routes — AI assistant, chat, tools, planner, workspace, social */}
-        <Route path="/dashboard/ai">
-          <SubscriptionGuard requiredPlan="pro">
-            <AIAssistant />
-          </SubscriptionGuard>
-        </Route>
-        <Route path="/dashboard/ai-chat">
-          <SubscriptionGuard requiredPlan="pro">
-            <AIChatPage />
-          </SubscriptionGuard>
-        </Route>
-        <Route path="/dashboard/ai-tools">
-          <SubscriptionGuard requiredPlan="pro">
-            <AIToolsPage />
-          </SubscriptionGuard>
-        </Route>
-        <Route path="/dashboard/workspace">
-          <SubscriptionGuard requiredPlan="pro">
-            <AIWorkspacePage />
-          </SubscriptionGuard>
-        </Route>
-        <Route path="/dashboard/planner">
-          <SubscriptionGuard requiredPlan="pro">
-            <ContentPlanner />
-          </SubscriptionGuard>
-        </Route>
-        <Route path="/dashboard/social">
-          <SubscriptionGuard requiredPlan="pro">
-            <SocialAccountsPage />
-          </SubscriptionGuard>
-        </Route>
+          {/* Pro+ routes — AI assistant, chat, tools, planner, workspace, social */}
+          <Route path="/dashboard/ai">
+            <SubscriptionGuard requiredPlan="pro">
+              <AIAssistant />
+            </SubscriptionGuard>
+          </Route>
+          <Route path="/dashboard/ai-chat">
+            <SubscriptionGuard requiredPlan="pro">
+              <AIChatPage />
+            </SubscriptionGuard>
+          </Route>
+          <Route path="/dashboard/ai-tools">
+            <SubscriptionGuard requiredPlan="pro">
+              <AIToolsPage />
+            </SubscriptionGuard>
+          </Route>
+          <Route path="/dashboard/workspace">
+            <SubscriptionGuard requiredPlan="pro">
+              <AIWorkspacePage />
+            </SubscriptionGuard>
+          </Route>
+          <Route path="/dashboard/planner">
+            <SubscriptionGuard requiredPlan="pro">
+              <ContentPlanner />
+            </SubscriptionGuard>
+          </Route>
+          <Route path="/dashboard/social">
+            <SubscriptionGuard requiredPlan="pro">
+              <SocialAccountsPage />
+            </SubscriptionGuard>
+          </Route>
 
-        {/* Business-only routes */}
-        <Route path="/dashboard/teams">
-          <SubscriptionGuard requiredPlan="business">
-            <TeamsPage />
-          </SubscriptionGuard>
-        </Route>
-        <Route path="/dashboard/messaging">
-          <SubscriptionGuard requiredPlan="business">
-            <MessagingPage />
-          </SubscriptionGuard>
-        </Route>
+          {/* Business-only routes */}
+          <Route path="/dashboard/teams">
+            <SubscriptionGuard requiredPlan="business">
+              <TeamsPage />
+            </SubscriptionGuard>
+          </Route>
+          <Route path="/dashboard/messaging">
+            <SubscriptionGuard requiredPlan="business">
+              <MessagingPage />
+            </SubscriptionGuard>
+          </Route>
 
-        {/* Open routes */}
-        <Route path="/dashboard/marketplace" component={MarketplacePage} />
-        <Route path="/dashboard/referrals" component={ReferralsPage} />
-      </Switch>
+          <Route component={NotFound} />
+        </Switch>
+      </ErrorBoundary>
     </DashboardLayout>
   );
 }
@@ -272,6 +282,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
           <Route path="/product/download" component={ProductDownloadPage} />
+          <Route path="/onboarding" component={OnboardingPage} />
           <Route path="/dashboard" component={ProtectedDashboard} />
           <Route path="/dashboard/*" component={ProtectedDashboard} />
           <Route path="/:username" component={PublicProfile} />
@@ -286,9 +297,11 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <TooltipProvider>
-        <WouterRouter base={basePath}>
-          <ClerkProviderWithRoutes />
-        </WouterRouter>
+        <ErrorBoundary>
+          <WouterRouter base={basePath}>
+            <ClerkProviderWithRoutes />
+          </WouterRouter>
+        </ErrorBoundary>
         <Toaster />
       </TooltipProvider>
     </ThemeProvider>

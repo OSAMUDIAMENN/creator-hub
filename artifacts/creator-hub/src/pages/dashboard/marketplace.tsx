@@ -75,11 +75,12 @@ type Listing = {
   isActive?: boolean;
 };
 
-function ListingCard({ listing, mine, onEdit, onDelete }: {
+function ListingCard({ listing, mine, onEdit, onDelete, onBook }: {
   listing: Listing;
   mine?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  onBook?: () => void;
 }) {
   return (
     <Card className="overflow-hidden hover:border-primary/40 transition-colors group">
@@ -133,9 +134,14 @@ function ListingCard({ listing, mine, onEdit, onDelete }: {
             </div>
           </div>
           {!mine && (
-            <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => window.open(`/${listing.sellerUsername}`, "_blank")}>
-              View Profile
-            </Button>
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => window.open(`/${listing.sellerUsername}`, "_blank")}>
+                View
+              </Button>
+              <Button size="sm" className="text-xs h-7" onClick={onBook}>
+                Book
+              </Button>
+            </div>
           )}
         </div>
       </CardContent>
@@ -158,6 +164,8 @@ export default function MarketplacePage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [bookListing, setBookListing] = useState<Listing | null>(null);
+  const [bookForm, setBookForm] = useState({ message: "", requirements: "" });
 
   const params = new URLSearchParams();
   if (categoryFilter !== "all") params.set("category", categoryFilter);
@@ -193,6 +201,25 @@ export default function MarketplacePage() {
       setDialogOpen(false);
       setEditId(null);
       setForm(emptyForm);
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const bookMutation = useMutation({
+    mutationFn: async ({ listingId, message, requirements }: { listingId: number; message: string; requirements: string }) => {
+      const res = await fetch(`${BASE_URL}/api/bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ listingId, message, requirements }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Booking failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Booking request sent!", description: "The seller will review and respond to your request." });
+      setBookListing(null);
+      setBookForm({ message: "", requirements: "" });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -285,7 +312,9 @@ export default function MarketplacePage() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((l) => <ListingCard key={l.id} listing={l} />)}
+              {filtered.map((l) => (
+                <ListingCard key={l.id} listing={l} onBook={() => { setBookListing(l); setBookForm({ message: "", requirements: "" }); }} />
+              ))}
             </div>
           )}
         </TabsContent>
@@ -396,6 +425,54 @@ export default function MarketplacePage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending || !form.title || !form.description}>
               {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create Listing"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Booking Dialog */}
+      <Dialog open={!!bookListing} onOpenChange={(o) => { if (!o) { setBookListing(null); setBookForm({ message: "", requirements: "" }); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Book Service</DialogTitle>
+          </DialogHeader>
+          {bookListing && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                <p className="font-semibold">{bookListing.title}</p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  by {bookListing.sellerName} · ₦{Number(bookListing.price).toLocaleString()} · {bookListing.deliveryDays}d delivery
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Message to seller</Label>
+                <Textarea
+                  placeholder="Introduce yourself and describe what you need..."
+                  value={bookForm.message}
+                  onChange={(e) => setBookForm((f) => ({ ...f, message: e.target.value }))}
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Requirements / brief (optional)</Label>
+                <Textarea
+                  placeholder="Specific details, links, references, deadlines..."
+                  value={bookForm.requirements}
+                  onChange={(e) => setBookForm((f) => ({ ...f, requirements: e.target.value }))}
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBookListing(null)}>Cancel</Button>
+            <Button
+              onClick={() => bookListing && bookMutation.mutate({ listingId: bookListing.id, message: bookForm.message, requirements: bookForm.requirements })}
+              disabled={bookMutation.isPending}
+            >
+              {bookMutation.isPending ? "Sending..." : "Send Booking Request"}
             </Button>
           </DialogFooter>
         </DialogContent>

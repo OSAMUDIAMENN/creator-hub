@@ -13,3 +13,4 @@
 - [Product file type detection](product-file-type.md) — detectFileType() helper infers type from fileUrl extension; video shows HTML5 player preview; others show icon+label; used in public-profile.tsx product preview dialog.
 - [Phase 1 security fixes](phase1-security.md) — IDOR patched in links/products/openai; ad fraud rate-limited (24h IP cooldown); price mismatch fixed via plan-config.ts; OpenAI clients are now lazily initialized; API Server workflow uses PORT=8080.
 - [Workflow startup](workflow-startup.md) — API Server needs PORT=8080 in command; OpenAI clients must be lazy-initialized (throw at call time, not import time); OPENAI_API_KEY and PAYSTACK_SECRET_KEY not yet set as secrets.
+- [Phase 2 core completion](phase2-completion.md) — Onboarding, Bookings, Verifications, Discover/Search, Error Boundaries, Verified badge all built; DB tables: bookings, creator_verifications; PHASE2_REPORT.md written; posts table missing (scheduler error) is pre-existing.

@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { MessageCircle, ExternalLink, Share2, ShoppingBag, Loader2, Download, Eye, Star, Play, FileText as FilePdf, ImageIcon, Film, Archive, FileType } from "lucide-react";
+import { MessageCircle, ExternalLink, Share2, ShoppingBag, Loader2, Download, Eye, Star, Play, FileText as FilePdf, ImageIcon, Film, Archive, FileType, BadgeCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SponsoredCard } from "@/components/ui/ad-slot";
 
@@ -308,7 +308,12 @@ export default function PublicProfile() {
           </Avatar>
 
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{profile.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center justify-center gap-2">
+              {profile.name}
+              {(profile as any).role === "verified_creator" && (
+                <BadgeCheck className="h-5 w-5 text-primary shrink-0" title="Verified Creator" />
+              )}
+            </h1>
             <p className="text-sm font-medium text-primary mt-1">@{profile.username}</p>
           </div>
 

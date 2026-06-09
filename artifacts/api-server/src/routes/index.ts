@@ -25,6 +25,9 @@ import marketplaceRouter from "./marketplace";
 import messagingRouter from "./messaging";
 import referralsRouter from "./referrals";
 import adminExtendedRouter from "./admin-extended";
+import bookingsRouter from "./bookings";
+import searchRouter from "./search";
+import verificationsRouter from "./verifications";
 
 const router: IRouter = Router();
 
@@ -54,5 +57,8 @@ router.use(marketplaceRouter);
 router.use(messagingRouter);
 router.use(referralsRouter);
 router.use(adminExtendedRouter);
+router.use(bookingsRouter);
+router.use(searchRouter);
+router.use(verificationsRouter);
 
 export default router;
