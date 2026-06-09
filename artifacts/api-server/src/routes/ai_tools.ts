@@ -23,7 +23,7 @@ router.post("/ai-tools/hooks", requireAuth(), async (req, res): Promise<void> =>
   const isAll = platform === "all";
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5-mini",
     max_tokens: 2500,
     messages: [{
       role: "user",
@@ -97,7 +97,7 @@ router.post("/ai-tools/script", requireAuth(), async (req, res): Promise<void> =
   const style = styleGuide[scriptType] ?? styleGuide["short-form"];
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5-mini",
     max_tokens: 2500,
     messages: [{
       role: "user",
@@ -155,7 +155,7 @@ Return ONLY valid JSON: { score, grade, clickability (string), emotionalImpact (
   }];
 
   const completion = await openai.chat.completions.create({
-    model: thumbnailBase64 ? "gpt-4o" : "gpt-4o-mini",
+    model: thumbnailBase64 ? "gpt-5" : "gpt-5-mini",
     max_tokens: 1200,
     messages,
     response_format: thumbnailBase64 ? undefined : { type: "json_object" },
@@ -184,7 +184,7 @@ router.get("/ai-tools/trends", requireAuth(), async (req, res): Promise<void> =>
   if (!credits.ok) { res.status(402).json({ error: `Insufficient AI credits. You have ${credits.remaining} remaining.` }); return; }
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5-mini",
     max_tokens: 2000,
     messages: [{
       role: "user",

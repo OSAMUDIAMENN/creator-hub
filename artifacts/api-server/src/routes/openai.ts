@@ -193,7 +193,7 @@ router.post("/openai/conversations/:id/messages", requireAuth(), async (req, res
 
   let fullResponse = "";
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5-mini",
     max_tokens: 2048,
     messages: [
       {
@@ -252,7 +252,7 @@ Return a JSON object with EXACTLY these keys:
 Return ONLY valid JSON, no explanation.`;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5-mini",
     max_tokens: 1500,
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, profilesTable, subscriptionsTable } from "@workspace/db";
+import { db, profilesTable, subscriptionsTable, platformSettingsTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 
 const router: IRouter = Router();
@@ -103,7 +103,36 @@ router.get("/subscription", requireAuth(), async (req, res): Promise<void> => {
 });
 
 router.get("/subscription/plans", async (_req, res): Promise<void> => {
-  res.json(PLAN_DETAILS);
+  const settings = await db.select().from(platformSettingsTable);
+  const map: Record<string, string> = {};
+  for (const row of settings) map[row.key] = row.value ?? "";
+
+  const plans = PLAN_DETAILS.map((plan) => {
+    if (plan.id === "free") {
+      return { ...plan, name: map["plan_free_name"] || plan.name };
+    }
+    if (plan.id === "pro") {
+      const priceKobo = map["plan_pro_price"] ? Number(map["plan_pro_price"]) : null;
+      return {
+        ...plan,
+        name: map["plan_pro_name"] || plan.name,
+        price: priceKobo !== null ? Math.round(priceKobo / 100) : plan.price,
+        description: map["plan_pro_description"] || undefined,
+      };
+    }
+    if (plan.id === "business") {
+      const priceKobo = map["plan_business_price"] ? Number(map["plan_business_price"]) : null;
+      return {
+        ...plan,
+        name: map["plan_business_name"] || plan.name,
+        price: priceKobo !== null ? Math.round(priceKobo / 100) : plan.price,
+        description: map["plan_business_description"] || undefined,
+      };
+    }
+    return plan;
+  });
+
+  res.json(plans);
 });
 
 router.post("/subscription/upgrade", requireAuth(), async (req, res): Promise<void> => {
