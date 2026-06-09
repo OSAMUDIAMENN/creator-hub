@@ -128,8 +128,8 @@ router.get("/admin/revenue", requireAuth(), requireAdmin, async (req: Request, r
   const [pendingWithdrawals] = await db.select({ total: sum(withdrawalsTable.amount) }).from(withdrawalsTable).where(eq(withdrawalsTable.status, "pending"));
   const [marketplaceListings] = await db.select({ count: count() }).from(marketplaceListingsTable).where(eq(marketplaceListingsTable.isActive, true));
 
-  const PRO_PRICE = 4900;
-  const BIZ_PRICE = 9900;
+  const PRO_PRICE = 5000;
+  const BIZ_PRICE = 15000;
   const subscriptionRevenue = (proSubs.count * PRO_PRICE) + (bizSubs.count * BIZ_PRICE);
 
   res.json({

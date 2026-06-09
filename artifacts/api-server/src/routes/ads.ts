@@ -1,9 +1,11 @@
 import { Router, type IRouter } from "express";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, sql } from "drizzle-orm";
 import { db, adsTable, adImpressionsTable, profilesTable, walletsTable, transactionsTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 
 const router: IRouter = Router();
+
+const AD_IMPRESSION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 function detectDevice(ua: string): string {
   if (!ua) return "unknown";
@@ -40,51 +42,72 @@ router.get("/public-ads/active", async (req, res): Promise<void> => {
         (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? null;
       const userAgent = (req.headers["user-agent"] as string) ?? null;
       const deviceType = userAgent ? detectDevice(userAgent) : "unknown";
+      const normalizedIp = ipAddress ? ipAddress.slice(0, 45) : null;
 
-      const [wallet] = await db
-        .select()
-        .from(walletsTable)
-        .where(eq(walletsTable.userId, profile.id));
+      // ── IP rate-limit: skip earnings if this IP already got credit in the last 24h ──
+      let alreadyCredited = false;
+      if (normalizedIp) {
+        const cooldownSince = new Date(Date.now() - AD_IMPRESSION_COOLDOWN_MS);
+        const [recentImpression] = await db
+          .select({ id: adImpressionsTable.id })
+          .from(adImpressionsTable)
+          .where(
+            and(
+              eq(adImpressionsTable.creatorId, profile.id),
+              eq(adImpressionsTable.ipAddress, normalizedIp),
+              gte(adImpressionsTable.recordedAt, cooldownSince)
+            )
+          )
+          .limit(1);
+        alreadyCredited = !!recentImpression;
+      }
 
       for (const ad of activeAds) {
         await db.insert(adImpressionsTable).values({
           adId: ad.id,
           creatorId: profile.id,
-          ipAddress: ipAddress ? ipAddress.slice(0, 45) : null,
+          ipAddress: normalizedIp,
           userAgent: userAgent ? userAgent.slice(0, 512) : null,
           deviceType,
         });
 
-        const earningsNgn = ad.earningsPerImpression / 100;
+        if (!alreadyCredited) {
+          const earningsNgn = ad.earningsPerImpression / 100;
 
-        if (wallet) {
-          await db
-            .update(walletsTable)
-            .set({
-              balance: String(Number(wallet.balance) + earningsNgn),
-              totalEarned: String(Number(wallet.totalEarned) + earningsNgn),
-            })
-            .where(eq(walletsTable.id, wallet.id));
-        } else {
-          await db.insert(walletsTable).values({
+          const [existingWallet] = await db
+            .select({ id: walletsTable.id })
+            .from(walletsTable)
+            .where(eq(walletsTable.userId, profile.id));
+
+          if (existingWallet) {
+            await db
+              .update(walletsTable)
+              .set({
+                balance: sql`${walletsTable.balance} + ${earningsNgn}`,
+                totalEarned: sql`${walletsTable.totalEarned} + ${earningsNgn}`,
+              })
+              .where(eq(walletsTable.id, existingWallet.id));
+          } else {
+            await db.insert(walletsTable).values({
+              userId: profile.id,
+              balance: String(earningsNgn),
+              totalEarned: String(earningsNgn),
+              totalWithdrawn: "0.00",
+              currency: "NGN",
+            });
+          }
+
+          await db.insert(transactionsTable).values({
             userId: profile.id,
-            balance: String(earningsNgn),
-            totalEarned: String(earningsNgn),
-            totalWithdrawn: "0.00",
+            type: "earning",
+            amount: String(earningsNgn),
             currency: "NGN",
+            description: `Ad impression: ${ad.title} (${ad.advertiserName})`,
+            reference: `AD-${ad.id}-${profile.id}-${Date.now()}`,
+            status: "completed",
+            metadata: JSON.stringify({ adId: ad.id, deviceType, source: "ad_impression" }),
           });
         }
-
-        await db.insert(transactionsTable).values({
-          userId: profile.id,
-          type: "earning",
-          amount: String(earningsNgn),
-          currency: "NGN",
-          description: `Ad impression: ${ad.title} (${ad.advertiserName})`,
-          reference: `AD-${ad.id}-${profile.id}-${Date.now()}`,
-          status: "completed",
-          metadata: JSON.stringify({ adId: ad.id, deviceType, source: "ad_impression" }),
-        });
       }
     }
   }

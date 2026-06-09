@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, conversationsTable, messagesTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 import { openai } from "@workspace/integrations-openai-ai-server";
@@ -63,7 +63,7 @@ router.get("/openai/conversations/:id", requireAuth(), async (req, res): Promise
   const [convo] = await db
     .select()
     .from(conversationsTable)
-    .where(eq(conversationsTable.id, params.data.id));
+    .where(and(eq(conversationsTable.id, params.data.id), eq(conversationsTable.clerkUserId, userId)));
 
   if (!convo) { res.status(404).json({ error: "Conversation not found" }); return; }
 
@@ -97,7 +97,7 @@ router.patch("/openai/conversations/:id", requireAuth(), async (req, res): Promi
   const [updated] = await db
     .update(conversationsTable)
     .set({ title: title.trim() })
-    .where(eq(conversationsTable.id, id))
+    .where(and(eq(conversationsTable.id, id), eq(conversationsTable.clerkUserId, userId)))
     .returning();
 
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
@@ -112,6 +112,13 @@ router.delete("/openai/conversations/:id", requireAuth(), async (req, res): Prom
   const params = DeleteOpenaiConversationParams.safeParse({ id: parseInt(rawId, 10) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
+  const [convo] = await db
+    .select({ id: conversationsTable.id })
+    .from(conversationsTable)
+    .where(and(eq(conversationsTable.id, params.data.id), eq(conversationsTable.clerkUserId, userId)));
+
+  if (!convo) { res.status(404).json({ error: "Conversation not found" }); return; }
+
   await db.delete(messagesTable).where(eq(messagesTable.conversationId, params.data.id));
   await db.delete(conversationsTable).where(eq(conversationsTable.id, params.data.id));
   res.status(204).send();
@@ -124,6 +131,13 @@ router.get("/openai/conversations/:id/messages", requireAuth(), async (req, res)
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const params = ListOpenaiMessagesParams.safeParse({ id: parseInt(rawId, 10) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
+
+  const [convo] = await db
+    .select({ id: conversationsTable.id })
+    .from(conversationsTable)
+    .where(and(eq(conversationsTable.id, params.data.id), eq(conversationsTable.clerkUserId, userId)));
+
+  if (!convo) { res.status(404).json({ error: "Conversation not found" }); return; }
 
   const msgs = await db
     .select()
@@ -149,13 +163,19 @@ router.post("/openai/conversations/:id/messages", requireAuth(), async (req, res
   const params = SendOpenaiMessageParams.safeParse({ id: parseInt(rawId, 10) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
+  const [convo] = await db
+    .select({ id: conversationsTable.id })
+    .from(conversationsTable)
+    .where(and(eq(conversationsTable.id, params.data.id), eq(conversationsTable.clerkUserId, userId)));
+
+  if (!convo) { res.status(404).json({ error: "Conversation not found" }); return; }
+
   const parsed = SendOpenaiMessageBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const [userMsg] = await db
+  await db
     .insert(messagesTable)
-    .values({ conversationId: params.data.id, role: "user", content: parsed.data.content })
-    .returning();
+    .values({ conversationId: params.data.id, role: "user", content: parsed.data.content });
 
   const history = await db
     .select()

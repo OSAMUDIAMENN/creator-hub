@@ -40,7 +40,7 @@ router.post("/withdrawals", requireAuth(), async (req, res): Promise<void> => {
     accountDetails: string;
   };
 
-  if (!amount || amount < 1) { res.status(400).json({ error: "Amount must be at least 1" }); return; }
+  if (!amount || amount < 1000) { res.status(400).json({ error: "Minimum withdrawal amount is ₦1,000" }); return; }
   if (!paymentMethod || !accountDetails) { res.status(400).json({ error: "Payment method and account details required" }); return; }
 
   const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, profile.id));

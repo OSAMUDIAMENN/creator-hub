@@ -132,6 +132,9 @@ router.patch("/products/:id", requireAuth(), async (req, res): Promise<void> => 
   const parsed = UpdateProductBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
+  const profileId = await getUserProfileId(userId);
+  if (!profileId) { res.status(404).json({ error: "Profile not found" }); return; }
+
   const updateData: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
   if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
@@ -144,7 +147,7 @@ router.patch("/products/:id", requireAuth(), async (req, res): Promise<void> => 
   const [product] = await db
     .update(productsTable)
     .set(updateData)
-    .where(eq(productsTable.id, params.data.id))
+    .where(and(eq(productsTable.id, params.data.id), eq(productsTable.userId, profileId)))
     .returning();
 
   if (!product) { res.status(404).json({ error: "Product not found" }); return; }
@@ -159,7 +162,12 @@ router.delete("/products/:id", requireAuth(), async (req, res): Promise<void> =>
   const params = DeleteProductParams.safeParse({ id: parseInt(rawId, 10) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
-  await db.delete(productsTable).where(eq(productsTable.id, params.data.id));
+  const profileId = await getUserProfileId(userId);
+  if (!profileId) { res.status(404).json({ error: "Profile not found" }); return; }
+
+  await db.delete(productsTable).where(
+    and(eq(productsTable.id, params.data.id), eq(productsTable.userId, profileId))
+  );
   res.status(204).send();
 });
 

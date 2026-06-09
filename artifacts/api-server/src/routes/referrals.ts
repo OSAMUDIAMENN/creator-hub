@@ -1,18 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import {
   db, referralsTable, profilesTable, walletsTable, transactionsTable, notificationsTable, subscriptionsTable,
 } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 import { nanoid } from "nanoid";
+import { REFERRAL_REWARDS_NGN } from "../lib/plan-config";
 
 const router: IRouter = Router();
-
-// Reward is 20% of first month's plan price (in NGN)
-const REFERRAL_REWARD: Record<string, number> = {
-  pro: 980,      // 20% of ₦4,900
-  business: 1980, // 20% of ₦9,900
-};
 
 function generateCode(username: string): string {
   const slug = username.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase();
@@ -73,26 +68,17 @@ router.get("/referral", requireAuth(), async (req: Request, res: Response): Prom
     .from(referralsTable)
     .where(and(eq(referralsTable.refereeId, profile.id)));
 
-  // Fetch referee profiles for history enrichment
+  // Fetch all referee profiles in a single query (no N+1)
   const referralList = allReferrals.filter((r: any) => r.refereeId !== null);
-  const refereeIds = referralList.map((r: any) => r.refereeId!);
+  const refereeIds = referralList.map((r: any) => r.refereeId as number);
   const refereeProfiles = refereeIds.length
-    ? await db.select({ id: profilesTable.id, name: profilesTable.name, username: profilesTable.username })
+    ? await db
+        .select({ id: profilesTable.id, name: profilesTable.name, username: profilesTable.username })
         .from(profilesTable)
-        .where(eq(profilesTable.id, refereeIds[0])) // handled in map below
-        .then(() =>
-          Promise.all(
-            refereeIds.map((id: any) =>
-              db.select({ id: profilesTable.id, name: profilesTable.name, username: profilesTable.username })
-                .from(profilesTable)
-                .where(eq(profilesTable.id, id))
-                .then((rows: any) => rows[0])
-            )
-          )
-        )
+        .where(inArray(profilesTable.id, refereeIds))
     : [];
 
-  const refereeMap = new Map(refereeProfiles.filter(Boolean).map((p: any) => [p.id, p]));
+  const refereeMap = new Map(refereeProfiles.map((p: any) => [p.id, p]));
 
   res.json({
     code: myCode,
@@ -167,7 +153,7 @@ router.post("/referral/apply", requireAuth(), async (req: Request, res: Response
 // ── Internal: called by paystack.ts after a paid subscription activates ───────
 // Export so paystack.ts can call it directly
 export async function rewardReferrerIfApplicable(refereeUserId: number, plan: string): Promise<void> {
-  const reward = REFERRAL_REWARD[plan];
+  const reward = REFERRAL_REWARDS_NGN[plan];
   if (!reward) return;
 
   // Find the referral where this user is the referee and it's still pending
@@ -186,12 +172,12 @@ export async function rewardReferrerIfApplicable(refereeUserId: number, plan: st
     convertedAt: new Date(),
   }).where(eq(referralsTable.id, ref.id));
 
-  // Credit the referrer's wallet
+  // Credit the referrer's wallet atomically
   const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, ref.referrerId));
   if (wallet) {
     await db.update(walletsTable).set({
-      balance: String(Number(wallet.balance) + reward),
-      totalEarned: String(Number(wallet.totalEarned) + reward),
+      balance: `${Number(wallet.balance) + reward}`,
+      totalEarned: `${Number(wallet.totalEarned) + reward}`,
     }).where(eq(walletsTable.id, wallet.id));
   } else {
     await db.insert(walletsTable).values({

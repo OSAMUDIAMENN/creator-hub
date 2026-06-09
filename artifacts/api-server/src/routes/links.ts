@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and, sql } from "drizzle-orm";
 import { db, linksTable, profilesTable } from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 import {
@@ -94,7 +94,7 @@ router.patch("/links/reorder", requireAuth(), async (req, res): Promise<void> =>
     await db
       .update(linksTable)
       .set({ sortOrder: i })
-      .where(eq(linksTable.id, parsed.data.ids[i]));
+      .where(and(eq(linksTable.id, parsed.data.ids[i]), eq(linksTable.userId, profileId)));
   }
 
   const links = await db
@@ -130,7 +130,7 @@ router.patch("/links/:id", requireAuth(), async (req, res): Promise<void> => {
   const [link] = await db
     .update(linksTable)
     .set(updateData)
-    .where(eq(linksTable.id, params.data.id))
+    .where(and(eq(linksTable.id, params.data.id), eq(linksTable.userId, profileId)))
     .returning();
 
   if (!link) { res.status(404).json({ error: "Link not found" }); return; }
@@ -146,7 +146,12 @@ router.delete("/links/:id", requireAuth(), async (req, res): Promise<void> => {
   const params = DeleteLinkParams.safeParse({ id: parseInt(rawId, 10) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
-  await db.delete(linksTable).where(eq(linksTable.id, params.data.id));
+  const profileId = await getUserProfileId(userId);
+  if (!profileId) { res.status(404).json({ error: "Profile not found" }); return; }
+
+  await db.delete(linksTable).where(
+    and(eq(linksTable.id, params.data.id), eq(linksTable.userId, profileId))
+  );
   res.status(204).send();
 });
 
@@ -155,12 +160,12 @@ router.post("/links/:id/click", async (req, res): Promise<void> => {
   const params = TrackLinkClickParams.safeParse({ id: parseInt(rawId, 10) });
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
 
-  const [existing] = await db.select().from(linksTable).where(eq(linksTable.id, params.data.id));
+  const [existing] = await db.select({ id: linksTable.id }).from(linksTable).where(eq(linksTable.id, params.data.id));
   if (!existing) { res.status(404).json({ error: "Link not found" }); return; }
 
   await db
     .update(linksTable)
-    .set({ clicks: existing.clicks + 1 })
+    .set({ clicks: sql`${linksTable.clicks} + 1` })
     .where(eq(linksTable.id, params.data.id));
 
   res.json({ success: true });

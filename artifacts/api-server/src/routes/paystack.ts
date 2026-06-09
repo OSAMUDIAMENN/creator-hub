@@ -9,18 +9,11 @@ import {
   verifyWebhookSignature,
 } from "../lib/paystack";
 import { sendCreatorSaleNotification, sendBuyerConfirmation } from "../lib/email.js";
+import { PLAN_PRICES_KOBO, PLAN_NAMES } from "../lib/plan-config";
 
 const router: IRouter = Router();
 
-const PLAN_PRICES: Record<string, number> = {
-  pro: 500000,
-  business: 1500000,
-};
-
-const PLAN_NAMES: Record<string, string> = {
-  pro: "Creator Pro",
-  business: "Creator Business",
-};
+const PLAN_PRICES = PLAN_PRICES_KOBO;
 
 const PLATFORM_FEE_PERCENT = 5;
 
@@ -239,6 +232,8 @@ router.get("/paystack/product-callback", async (req: Request, res: Response): Pr
 
 router.get("/paystack/product-download-info", async (req: Request, res: Response): Promise<void> => {
   const reference = req.query.reference as string;
+  const buyerEmail = (req.query.email as string | undefined)?.toLowerCase().trim();
+
   if (!reference) { res.status(400).json({ error: "Reference required" }); return; }
 
   const [tx] = await db
@@ -252,6 +247,11 @@ router.get("/paystack/product-download-info", async (req: Request, res: Response
 
   const meta = tx.metadata ? JSON.parse(tx.metadata) : {};
   if (!meta.productId) { res.status(404).json({ error: "Product info not found" }); return; }
+
+  // Verify buyer email matches purchase record when provided
+  if (buyerEmail && meta.buyerEmail && meta.buyerEmail.toLowerCase() !== buyerEmail) {
+    res.status(403).json({ error: "Email does not match purchase record" }); return;
+  }
 
   const [product] = await db.select().from(productsTable).where(eq(productsTable.id, meta.productId));
   if (!product) { res.status(404).json({ error: "Product not found" }); return; }
