@@ -77,6 +77,121 @@ export async function sendCreatorSaleNotification(params: {
   }
 }
 
+export async function sendTipReceivedNotification(params: {
+  creatorEmail: string;
+  creatorName: string;
+  tipperName: string;
+  amountNgn: number;
+  message: string | null;
+}) {
+  if (!resend) {
+    console.log("[Email] RESEND_API_KEY not configured. Skipping tip email.");
+    return;
+  }
+  const { creatorEmail, creatorName, tipperName, amountNgn, message } = params;
+
+  const html = baseHtml(`
+    <div class="header">
+      <h1>💸 New tip received!</h1>
+      <p>Someone just sent you a tip</p>
+    </div>
+    <div class="body">
+      <h2>You received a tip, ${creatorName}!</h2>
+      <div class="amount">+₦${fmt(amountNgn)}</div>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">From</span><span class="info-value">${tipperName}</span></div>
+        <div class="info-row"><span class="info-label">Amount</span><span class="info-value">₦${fmt(amountNgn)}</span></div>
+        ${message ? `<div class="info-row"><span class="info-label">Message</span><span class="info-value">"${message}"</span></div>` : ""}
+      </div>
+      <p style="color:#6b7280;font-size:13px">This tip has been added to your wallet. Keep creating great content!</p>
+    </div>
+  `);
+
+  try {
+    await resend.emails.send({ from: FROM, to: creatorEmail, subject: `💸 You received a ₦${fmt(amountNgn)} tip from ${tipperName}`, html });
+  } catch (err) {
+    console.error("[Email] Tip notification failed:", err);
+  }
+}
+
+export async function sendMarketplaceOrderNotification(params: {
+  sellerEmail: string;
+  sellerName: string;
+  listingTitle: string;
+  buyerName: string;
+  buyerEmail: string;
+  amountNgn: number;
+  requirements: string | null;
+  reference: string;
+}) {
+  if (!resend) {
+    console.log("[Email] RESEND_API_KEY not configured. Skipping marketplace order email.");
+    return;
+  }
+  const { sellerEmail, sellerName, listingTitle, buyerName, buyerEmail, amountNgn, requirements, reference } = params;
+
+  const html = baseHtml(`
+    <div class="header">
+      <h1>📦 New order received!</h1>
+      <p>A client just hired you for a service</p>
+    </div>
+    <div class="body">
+      <h2>Congrats, ${sellerName}!</h2>
+      <p><strong>${buyerName}</strong> (${buyerEmail}) placed an order for your service.</p>
+      <div class="amount">+₦${fmt(amountNgn)}</div>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Service</span><span class="info-value">${listingTitle}</span></div>
+        <div class="info-row"><span class="info-label">Client</span><span class="info-value">${buyerName} (${buyerEmail})</span></div>
+        <div class="info-row"><span class="info-label">Your earnings</span><span class="info-value">₦${fmt(amountNgn)}</span></div>
+        <div class="info-row"><span class="info-label">Order ref</span><span class="info-value">${reference}</span></div>
+        ${requirements ? `<div class="info-row"><span class="info-label">Requirements</span><span class="info-value">${requirements.slice(0, 200)}</span></div>` : ""}
+      </div>
+      <p style="color:#6b7280;font-size:13px">Log in to your dashboard to accept and start working on this order.</p>
+    </div>
+  `);
+
+  try {
+    await resend.emails.send({ from: FROM, to: sellerEmail, subject: `📦 New order — ₦${fmt(amountNgn)} from "${listingTitle}"`, html });
+  } catch (err) {
+    console.error("[Email] Marketplace order notification failed:", err);
+  }
+}
+
+export async function sendRefundConfirmation(params: {
+  buyerEmail: string;
+  buyerName: string;
+  amountNgn: number;
+  reference: string;
+}) {
+  if (!resend) {
+    console.log("[Email] RESEND_API_KEY not configured. Skipping refund email.");
+    return;
+  }
+  const { buyerEmail, buyerName, amountNgn, reference } = params;
+
+  const html = baseHtml(`
+    <div class="header">
+      <h1>Refund Processed ✓</h1>
+      <p>Your refund has been approved</p>
+    </div>
+    <div class="body">
+      <h2>Hi ${buyerName}, your refund is being processed.</h2>
+      <p>We've processed a refund for your recent purchase.</p>
+      <div class="info-box">
+        <div class="info-row"><span class="info-label">Refund amount</span><span class="info-value">₦${fmt(amountNgn)}</span></div>
+        <div class="info-row"><span class="info-label">Original order ref</span><span class="info-value">${reference}</span></div>
+      </div>
+      <p style="color:#6b7280;font-size:13px">Refunds typically appear in 3–5 business days depending on your bank. Contact support if you have any questions.</p>
+    </div>
+  `);
+
+  try {
+    await resend.emails.send({ from: FROM, to: buyerEmail, subject: `Refund confirmed — ₦${fmt(amountNgn)} refunded`, html });
+  } catch (err) {
+    console.error("[Email] Refund confirmation failed:", err);
+  }
+}
+
 export async function sendBuyerConfirmation(params: {
   buyerEmail: string;
   buyerName: string;

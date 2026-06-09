@@ -40,6 +40,11 @@ import {
   ArrowUpRight,
   History,
   Megaphone,
+  BarChart3,
+  Download,
+  Heart,
+  Package,
+  PieChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardAdBanner } from "@/components/ui/dashboard-ad-banner";
@@ -60,6 +65,105 @@ const TX_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   subscription: { label: "Subscription", color: "text-primary" },
 };
 
+const REVENUE_COLORS: Record<string, string> = {
+  product_sales: "#f97316",
+  ad_revenue: "#eab308",
+  tips: "#ec4899",
+  marketplace: "#8b5cf6",
+};
+
+const REVENUE_LABELS: Record<string, string> = {
+  product_sales: "Product Sales",
+  ad_revenue: "Ad Revenue",
+  tips: "Tips",
+  marketplace: "Marketplace",
+};
+
+function SimpleBarChart({ data, valueKey }: { data: Array<Record<string, any>>; valueKey: string }) {
+  const max = Math.max(...data.map((d) => d[valueKey] ?? 0), 1);
+  return (
+    <div className="flex items-end gap-1.5 h-28 w-full">
+      {data.map((d, i) => {
+        const pct = Math.max((d[valueKey] ?? 0) / max, 0.02) * 100;
+        return (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div className="w-full relative group">
+              <div
+                className="w-full bg-primary/80 rounded-t-sm transition-all duration-300"
+                style={{ height: `${pct * 0.88}px`, minHeight: 3, maxHeight: 96 }}
+              />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 bg-popover border rounded text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+                ₦{Number(d[valueKey] ?? 0).toLocaleString()}
+              </div>
+            </div>
+            <span className="text-[9px] text-muted-foreground leading-none text-center">{d.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DonutChart({ breakdown }: { breakdown: Record<string, number> }) {
+  const total = Object.values(breakdown).reduce((s, v) => s + v, 0);
+  if (total === 0) return (
+    <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">No revenue yet</div>
+  );
+
+  let offset = 0;
+  const slices = Object.entries(breakdown)
+    .filter(([, v]) => v > 0)
+    .map(([key, val]) => {
+      const pct = (val / total) * 100;
+      const slice = { key, val, pct, offset };
+      offset += pct;
+      return slice;
+    });
+
+  const r = 40;
+  const cx = 60;
+  const cy = 60;
+  const circumference = 2 * Math.PI * r;
+
+  function polarToCartesian(pct: number) {
+    const angle = (pct / 100) * 360 - 90;
+    const rad = (angle * Math.PI) / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+
+  function describeArc(startPct: number, endPct: number) {
+    const s = polarToCartesian(startPct);
+    const e = polarToCartesian(endPct);
+    const large = endPct - startPct > 50 ? 1 : 0;
+    return `M ${cx} ${cy} L ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y} Z`;
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <svg width="120" height="120" viewBox="0 0 120 120" className="shrink-0">
+        {slices.map((s) => (
+          <path
+            key={s.key}
+            d={describeArc(s.offset, s.offset + s.pct)}
+            fill={REVENUE_COLORS[s.key] ?? "#94a3b8"}
+            opacity={0.85}
+          />
+        ))}
+        <circle cx={cx} cy={cy} r={22} fill="white" className="dark:fill-background" />
+      </svg>
+      <div className="space-y-1.5 min-w-0">
+        {slices.map((s) => (
+          <div key={s.key} className="flex items-center gap-1.5 text-xs">
+            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: REVENUE_COLORS[s.key] ?? "#94a3b8" }} />
+            <span className="text-muted-foreground truncate">{REVENUE_LABELS[s.key] ?? s.key}</span>
+            <span className="font-medium ml-auto pl-2">₦{Number(s.val).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function WalletPage() {
   const { data: wallet, isLoading: walletLoading } = useGetWallet();
   const { data: withdrawals, isLoading: withdrawalsLoading } = useListWithdrawals();
@@ -78,6 +182,27 @@ export default function WalletPage() {
     queryKey: ["adEarnings"],
     queryFn: () =>
       fetch(`${BASE_URL}/api/ads/earnings`, { credentials: "include" }).then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+    queryKey: ["revenueAnalytics"],
+    queryFn: () =>
+      fetch(`${BASE_URL}/api/revenue/analytics`, { credentials: "include" }).then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
+  const { data: tips, isLoading: tipsLoading } = useQuery({
+    queryKey: ["tipsReceived"],
+    queryFn: () =>
+      fetch(`${BASE_URL}/api/tips/received`, { credentials: "include" }).then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
+  const { data: tipStats } = useQuery({
+    queryKey: ["tipStats"],
+    queryFn: () =>
+      fetch(`${BASE_URL}/api/tips/stats`, { credentials: "include" }).then((r) => r.json()),
     staleTime: 60_000,
   });
 
@@ -120,7 +245,16 @@ export default function WalletPage() {
     );
   };
 
+  const handleExportReport = () => {
+    const from = new Date(Date.now() - 90 * 86400_000).toISOString().split("T")[0];
+    const to = new Date().toISOString().split("T")[0];
+    window.open(`${BASE_URL}/api/revenue/earnings-report?from=${from}&to=${to}`, "_blank");
+  };
+
   const canWithdraw = wallet && (wallet.balance ?? 0) >= 1000;
+
+  const revenueBreakdown = analytics?.revenueBreakdown ?? {};
+  const monthlyEarnings = analytics?.monthlyEarnings ?? [];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -129,17 +263,22 @@ export default function WalletPage() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Wallet & Earnings</h1>
           <p className="text-muted-foreground mt-1">Track your earnings and request withdrawals.</p>
         </div>
-        <Button onClick={() => setWithdrawOpen(true)} disabled={!canWithdraw}>
-          <ArrowDownCircle className="h-4 w-4 mr-2" />
-          Withdraw
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportReport} className="hidden sm:flex">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setWithdrawOpen(true)} disabled={!canWithdraw}>
+            <ArrowDownCircle className="h-4 w-4 mr-2" />
+            Withdraw
+          </Button>
+        </div>
       </div>
 
       <DashboardAdBanner count={1} />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
         <Card className="border-primary/20 bg-primary/5">
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wider font-medium">
@@ -197,51 +336,131 @@ export default function WalletPage() {
         </Card>
       </div>
 
-      {/* Ad Earnings */}
-      <Card className="border-dashed border-2 border-yellow-500/30 bg-yellow-500/5">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wider font-medium">
-              <Megaphone className="h-4 w-4 text-yellow-500" /> Ad Earnings
-            </CardDescription>
-            {adEarnings && (
-              <span className="text-xs text-muted-foreground">
-                {adEarnings.totalImpressions ?? 0} impressions
-              </span>
+      {/* Revenue Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Monthly Earnings
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">Last 6 months</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {analyticsLoading ? (
+              <Skeleton className="h-28 w-full" />
+            ) : monthlyEarnings.length === 0 ? (
+              <div className="h-28 flex items-center justify-center text-muted-foreground text-sm">No earnings yet</div>
+            ) : (
+              <SimpleBarChart data={monthlyEarnings} valueKey="total" />
             )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {adEarningsLoading ? (
-            <Skeleton className="h-9 w-32" />
-          ) : (
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <PieChart className="h-4 w-4 text-primary" />
+              Revenue Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analyticsLoading ? (
+              <Skeleton className="h-28 w-full" />
+            ) : (
+              <DonutChart breakdown={revenueBreakdown} />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Secondary Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Ad Earnings */}
+        <Card className="border-dashed border-2 border-yellow-500/30 bg-yellow-500/5">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wider font-medium">
+                <Megaphone className="h-4 w-4 text-yellow-500" /> Ad Earnings
+              </CardDescription>
+              {adEarnings && (
+                <span className="text-xs text-muted-foreground">
+                  {adEarnings.totalImpressions ?? 0} impressions
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {adEarningsLoading ? (
+              <Skeleton className="h-8 w-28" />
+            ) : (
+              <div>
+                <p className="text-2xl font-bold text-yellow-600">
+                  ₦{Number((adEarnings?.totalEarningsKobo ?? 0) / 100).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">From sponsored ads</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Tips Received */}
+        <Card className="border-dashed border-2 border-pink-500/30 bg-pink-500/5">
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wider font-medium">
+              <Heart className="h-4 w-4 text-pink-500" /> Tips Received
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div>
-              <p className="text-3xl font-bold text-yellow-600">
-                ₦{Number((adEarnings?.totalEarningsKobo ?? 0) / 100).toLocaleString()}
+              <p className="text-2xl font-bold text-pink-600">
+                ₦{Number(tipStats?.totalAmount ?? 0).toLocaleString()}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Earned from sponsored ads shown on your public profile
+                {tipStats?.totalTips ?? 0} tip{tipStats?.totalTips !== 1 ? "s" : ""} from {tipStats?.uniqueTippers ?? 0} supporter{tipStats?.uniqueTippers !== 1 ? "s" : ""}
               </p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Tabs: Transactions + Withdrawals */}
+        {/* Marketplace Orders */}
+        <Card className="border-dashed border-2 border-purple-500/30 bg-purple-500/5">
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-2 text-xs uppercase tracking-wider font-medium">
+              <Package className="h-4 w-4 text-purple-500" /> Marketplace
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <p className="text-2xl font-bold text-purple-600">
+                ₦{Number(revenueBreakdown.marketplace ?? 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">From service orders</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs: Transactions + Withdrawals + Tips */}
       <Tabs defaultValue="transactions">
         <TabsList>
           <TabsTrigger value="transactions" className="gap-2">
-            <History className="h-4 w-4" /> Transaction History
+            <History className="h-4 w-4" /> Transactions
           </TabsTrigger>
           <TabsTrigger value="withdrawals" className="gap-2">
             <ArrowDownCircle className="h-4 w-4" /> Withdrawals
+          </TabsTrigger>
+          <TabsTrigger value="tips" className="gap-2">
+            <Heart className="h-4 w-4" /> Tips
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="transactions" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">All Transactions</CardTitle>
+              <CardTitle className="text-base">Transaction History</CardTitle>
               <CardDescription>Your full earnings and payment history.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -345,6 +564,71 @@ export default function WalletPage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tips" className="mt-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Tips Received</CardTitle>
+                  <CardDescription>Support from your fans and followers.</CardDescription>
+                </div>
+                {tipStats?.totalTips > 0 && (
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-pink-600">₦{Number(tipStats.totalAmount ?? 0).toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">{tipStats.totalTips} tips</p>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {tipsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)}
+                </div>
+              ) : !tips?.length ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Heart className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium">No tips yet</p>
+                  <p className="text-sm opacity-70 mt-1">Share your profile link to start receiving tips from fans.</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {(tips as any[]).map((tip: any) => (
+                    <div key={tip.id} className="py-4 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2 rounded-full bg-pink-500/10 shrink-0">
+                          <Heart className="h-4 w-4 text-pink-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm">
+                            {tip.isAnonymous ? "Anonymous" : (tip.tipperName ?? "Anonymous")}
+                          </p>
+                          {tip.message && (
+                            <p className="text-xs text-muted-foreground truncate italic">"{tip.message}"</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(tip.createdAt).toLocaleDateString("en-NG", {
+                              day: "numeric", month: "short", year: "numeric"
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-bold text-sm text-pink-600">
+                          +₦{Number(tip.amount).toLocaleString()}
+                        </p>
+                        <Badge variant="secondary" className={cn("text-[10px] mt-0.5", tip.status === "completed" ? "text-green-600 bg-green-500/10" : "")}>
+                          {tip.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

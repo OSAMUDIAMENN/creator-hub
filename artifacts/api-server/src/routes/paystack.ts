@@ -1,21 +1,42 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, sql } from "drizzle-orm";
 import { rewardReferrerIfApplicable } from "./referrals";
-import { db, profilesTable, subscriptionsTable, transactionsTable, walletsTable, productsTable, notificationsTable } from "@workspace/db";
+import {
+  db, profilesTable, subscriptionsTable, transactionsTable, walletsTable, productsTable,
+  notificationsTable, platformSettingsTable, tipsTable, productPurchasesTable,
+  marketplaceOrdersTable, marketplaceListingsTable, creatorFanSubscriptionsTable, creatorSubscriptionTiersTable,
+} from "@workspace/db";
 import { getAuth, requireAuth } from "@clerk/express";
 import {
   initializeTransaction,
   verifyTransaction,
   verifyWebhookSignature,
 } from "../lib/paystack";
-import { sendCreatorSaleNotification, sendBuyerConfirmation } from "../lib/email.js";
+import {
+  sendCreatorSaleNotification, sendBuyerConfirmation, sendTipReceivedNotification,
+  sendMarketplaceOrderNotification, sendRefundConfirmation,
+} from "../lib/email.js";
 import { PLAN_PRICES_KOBO, PLAN_NAMES } from "../lib/plan-config";
 
 const router: IRouter = Router();
 
 const PLAN_PRICES = PLAN_PRICES_KOBO;
 
-const PLATFORM_FEE_PERCENT = 5;
+const DEFAULT_PLATFORM_FEE_PERCENT = 5;
+
+async function getPlatformFeePercent(): Promise<number> {
+  try {
+    const [setting] = await db
+      .select()
+      .from(platformSettingsTable)
+      .where(eq(platformSettingsTable.key, "platform_fee_percent"));
+    if (setting) {
+      const val = parseFloat(setting.value);
+      if (!isNaN(val) && val >= 0 && val <= 50) return val;
+    }
+  } catch {}
+  return DEFAULT_PLATFORM_FEE_PERCENT;
+}
 
 const CREDIT_PACKS: Record<string, { credits: number; priceKobo: number }> = {
   credits_50: { credits: 50, priceKobo: 50000 },
@@ -258,10 +279,37 @@ router.get("/paystack/product-download-info", async (req: Request, res: Response
 
   const [creator] = await db.select().from(profilesTable).where(eq(profilesTable.id, product.userId));
 
+  // Enforce download limits
+  const [purchase] = await db
+    .select()
+    .from(productPurchasesTable)
+    .where(eq(productPurchasesTable.reference, reference));
+
+  if (purchase?.maxDownloads != null && (purchase.downloadCount ?? 0) >= purchase.maxDownloads) {
+    res.status(403).json({
+      error: "Download limit reached",
+      downloadCount: purchase.downloadCount,
+      maxDownloads: purchase.maxDownloads,
+    }); return;
+  }
+
+  // Increment download count
+  if (purchase) {
+    await db
+      .update(productPurchasesTable)
+      .set({
+        downloadCount: sql`${productPurchasesTable.downloadCount} + 1`,
+        lastDownloadAt: new Date(),
+      })
+      .where(eq(productPurchasesTable.id, purchase.id));
+  }
+
   res.json({
     productName: product.name,
     fileUrl: product.fileUrl,
     creatorName: creator?.name ?? creator?.username ?? "Creator",
+    downloadCount: (purchase?.downloadCount ?? 0) + 1,
+    maxDownloads: purchase?.maxDownloads ?? null,
   });
 });
 
@@ -333,6 +381,14 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
           creatorUserId?: number;
           buyerEmail?: string;
           buyerName?: string;
+          creatorId?: number;
+          tipperName?: string;
+          tipperEmail?: string;
+          isAnonymous?: boolean;
+          message?: string | null;
+          listingId?: number;
+          sellerId?: number;
+          requirements?: string | null;
         } | undefined;
 
         if (meta?.type === "subscription" && meta.userId && meta.plan) {
@@ -350,6 +406,24 @@ router.post("/paystack/webhook", async (req: Request, res: Response): Promise<vo
 
         if (meta?.type === "credit_purchase" && meta.userId && meta.credits) {
           await fulfillCreditPurchase(meta.userId, meta.credits, data.amount, data.reference);
+        }
+
+        if (meta?.type === "tip" && meta.creatorId) {
+          await fulfillTip(meta.creatorId, data.amount, data.reference, {
+            tipperName: meta.tipperName,
+            tipperEmail: meta.tipperEmail,
+            isAnonymous: meta.isAnonymous ?? false,
+            message: meta.message,
+          });
+        }
+
+        if (meta?.type === "marketplace_order" && meta.listingId && meta.sellerId) {
+          await fulfillMarketplaceOrder(meta.listingId, meta.sellerId, data.amount, data.reference, {
+            buyerEmail: meta.buyerEmail ?? "",
+            buyerName: meta.buyerName,
+            message: meta.message,
+            requirements: meta.requirements,
+          });
         }
         break;
       }
@@ -657,7 +731,8 @@ async function fulfillProductPurchase(
   if (existing?.status === "completed") return;
 
   const amountNgn = amountKobo / 100;
-  const creatorEarnings = amountNgn * (1 - PLATFORM_FEE_PERCENT / 100);
+  const feePercent = await getPlatformFeePercent();
+  const creatorEarnings = amountNgn * (1 - feePercent / 100);
 
   await db
     .update(productsTable)
@@ -696,7 +771,7 @@ async function fulfillProductPurchase(
       type: "earning",
       amount: String(creatorEarnings),
       currency: "NGN",
-      description: `Sale: ${product?.name ?? "Product"} (after ${PLATFORM_FEE_PERCENT}% platform fee)`,
+      description: `Sale: ${product?.name ?? "Product"} (after ${feePercent}% platform fee)`,
       reference,
       status: "completed",
       metadata: JSON.stringify({ productId, buyerEmail, buyerName }),
@@ -713,6 +788,25 @@ async function fulfillProductPurchase(
     message: `${buyerDisplay}${emailDisplay} just bought "${product?.name ?? "your product"}" for ₦${amountNgn.toLocaleString("en-NG")}. You earned ₦${creatorEarnings.toLocaleString("en-NG", { maximumFractionDigits: 2 })}.`,
     data: JSON.stringify({ productId, buyerEmail, buyerName, amount: creatorEarnings, reference }),
   });
+
+  // Create product_purchases record for download tracking
+  const [purchaseExists] = await db
+    .select({ id: productPurchasesTable.id })
+    .from(productPurchasesTable)
+    .where(eq(productPurchasesTable.reference, reference));
+  if (!purchaseExists) {
+    await db.insert(productPurchasesTable).values({
+      productId,
+      buyerEmail: buyerEmail ?? "unknown@buyer.com",
+      buyerName: buyerName ?? null,
+      amount: String(amountNgn),
+      currency: "NGN",
+      reference,
+      status: "completed",
+      downloadCount: 0,
+      maxDownloads: (product as any)?.downloadLimit ?? null,
+    });
+  }
 
   // Send email notifications (graceful — skips if RESEND_API_KEY not set)
   const [creator] = await db
@@ -741,6 +835,445 @@ async function fulfillProductPurchase(
       creatorName: creator?.name ?? "Creator",
       fileUrl: (product as any)?.fileUrl ?? null,
       amountNgn,
+      reference,
+    });
+  }
+}
+
+// ─── Tip checkout ─────────────────────────────────────────────────────────────
+
+router.post("/paystack/tip/:username/checkout", async (req: Request, res: Response): Promise<void> => {
+  const { username } = req.params as { username: string };
+  const { email, name, amount, message, isAnonymous } = req.body as {
+    email?: string; name?: string; amount?: number; message?: string; isAnonymous?: boolean;
+  };
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Valid email is required" }); return;
+  }
+  if (!amount || amount < 100) {
+    res.status(400).json({ error: "Minimum tip amount is ₦100" }); return;
+  }
+
+  const [creator] = await db.select().from(profilesTable).where(eq(profilesTable.username, username));
+  if (!creator) { res.status(404).json({ error: "Creator not found" }); return; }
+
+  const reference = generateReference(`TIP-${creator.id}`);
+  const amountKobo = Math.round(amount * 100);
+  const tipperName = isAnonymous ? "Anonymous" : (name?.trim() || "Anonymous");
+
+  await db.insert(tipsTable).values({
+    creatorId: creator.id,
+    tipperName: isAnonymous ? null : tipperName,
+    tipperEmail: isAnonymous ? null : email,
+    isAnonymous: !!isAnonymous,
+    message: message?.trim() ?? null,
+    amount: String(amount),
+    currency: "NGN",
+    reference,
+    status: "pending",
+  });
+
+  const tx = await initializeTransaction({
+    email,
+    amountKobo,
+    reference,
+    callbackUrl: getCallbackUrl(req, "tip-callback"),
+    metadata: {
+      type: "tip",
+      creatorId: creator.id,
+      creatorUsername: username,
+      tipperName,
+      tipperEmail: email,
+      isAnonymous: !!isAnonymous,
+      message: message?.trim() ?? null,
+    },
+  });
+
+  res.json({ authorizationUrl: tx.authorization_url, reference });
+});
+
+router.get("/paystack/tip-callback", async (req: Request, res: Response): Promise<void> => {
+  const reference = req.query.reference as string;
+  const proto = req.headers["x-forwarded-proto"] ?? "https";
+  const host = req.get("host") ?? "";
+  const baseFrontendUrl = `${proto}://${host}`;
+
+  if (!reference) { res.redirect(`${baseFrontendUrl}/?tip=failed`); return; }
+
+  try {
+    const tx = await verifyTransaction(reference);
+    if (tx.status !== "success") {
+      res.redirect(`${baseFrontendUrl}/?tip=failed`); return;
+    }
+
+    const meta = tx.metadata as {
+      type?: string; creatorId?: number; tipperName?: string;
+      tipperEmail?: string; isAnonymous?: boolean; message?: string;
+    };
+
+    if (meta?.type === "tip" && meta.creatorId) {
+      await fulfillTip(meta.creatorId, tx.amount, reference, {
+        tipperName: meta.tipperName,
+        tipperEmail: meta.tipperEmail,
+        isAnonymous: meta.isAnonymous ?? false,
+        message: meta.message,
+      });
+    }
+
+    res.redirect(`${baseFrontendUrl}/?tip=success`);
+  } catch (err) {
+    req.log.error({ err }, "Tip callback error");
+    res.redirect(`${baseFrontendUrl}/?tip=failed`);
+  }
+});
+
+// ─── Marketplace order checkout ───────────────────────────────────────────────
+
+router.post("/paystack/marketplace/:listingId/checkout", async (req: Request, res: Response): Promise<void> => {
+  const listingId = parseInt(req.params.listingId as string, 10);
+  if (isNaN(listingId)) { res.status(400).json({ error: "Invalid listing ID" }); return; }
+
+  const { email, buyerName, message, requirements } = req.body as {
+    email?: string; buyerName?: string; message?: string; requirements?: string;
+  };
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Valid email is required" }); return;
+  }
+
+  const [listing] = await db.select().from(marketplaceListingsTable).where(eq(marketplaceListingsTable.id, listingId));
+  if (!listing) { res.status(404).json({ error: "Listing not found" }); return; }
+
+  const [seller] = await db.select().from(profilesTable).where(eq(profilesTable.id, listing.sellerId));
+  if (!seller) { res.status(404).json({ error: "Seller not found" }); return; }
+
+  const amountKobo = Math.round(Number(listing.price) * 100);
+  const reference = generateReference(`MKT-${listingId}`);
+
+  const tx = await initializeTransaction({
+    email,
+    amountKobo,
+    reference,
+    callbackUrl: getCallbackUrl(req, "marketplace-callback"),
+    metadata: {
+      type: "marketplace_order",
+      listingId,
+      sellerId: seller.id,
+      buyerEmail: email,
+      buyerName: buyerName?.trim() || "Customer",
+      message: message?.trim() ?? null,
+      requirements: requirements?.trim() ?? null,
+    },
+  });
+
+  res.json({ authorizationUrl: tx.authorization_url, reference });
+});
+
+router.get("/paystack/marketplace-callback", async (req: Request, res: Response): Promise<void> => {
+  const reference = req.query.reference as string;
+  const proto = req.headers["x-forwarded-proto"] ?? "https";
+  const host = req.get("host") ?? "";
+  const baseFrontendUrl = `${proto}://${host}`;
+
+  if (!reference) { res.redirect(`${baseFrontendUrl}/dashboard/store?order=failed`); return; }
+
+  try {
+    const tx = await verifyTransaction(reference);
+    if (tx.status !== "success") {
+      res.redirect(`${baseFrontendUrl}/?order=failed`); return;
+    }
+
+    const meta = tx.metadata as {
+      type?: string; listingId?: number; sellerId?: number;
+      buyerEmail?: string; buyerName?: string; message?: string; requirements?: string;
+    };
+
+    if (meta?.type === "marketplace_order" && meta.listingId && meta.sellerId) {
+      await fulfillMarketplaceOrder(meta.listingId, meta.sellerId, tx.amount, reference, {
+        buyerEmail: meta.buyerEmail ?? "",
+        buyerName: meta.buyerName,
+        message: meta.message,
+        requirements: meta.requirements,
+      });
+    }
+
+    res.redirect(`${baseFrontendUrl}/?order=success`);
+  } catch (err) {
+    req.log.error({ err }, "Marketplace callback error");
+    res.redirect(`${baseFrontendUrl}/?order=failed`);
+  }
+});
+
+// ─── Admin: platform fee & product refunds ────────────────────────────────────
+
+router.get("/admin/settings/platform-fee", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+  const { userId: clerkId } = getAuth(req);
+  if (!clerkId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.clerkId, clerkId));
+  if (!profile?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const fee = await getPlatformFeePercent();
+  res.json({ platformFeePercent: fee });
+});
+
+router.patch("/admin/settings/platform-fee", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+  const { userId: clerkId } = getAuth(req);
+  if (!clerkId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.clerkId, clerkId));
+  if (!profile?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const { platformFeePercent } = req.body as { platformFeePercent?: number };
+  if (typeof platformFeePercent !== "number" || platformFeePercent < 0 || platformFeePercent > 50) {
+    res.status(400).json({ error: "Fee must be between 0 and 50 percent" }); return;
+  }
+
+  const [existing] = await db
+    .select()
+    .from(platformSettingsTable)
+    .where(eq(platformSettingsTable.key, "platform_fee_percent"));
+
+  if (existing) {
+    await db.update(platformSettingsTable).set({ value: String(platformFeePercent) }).where(eq(platformSettingsTable.key, "platform_fee_percent"));
+  } else {
+    await db.insert(platformSettingsTable).values({ key: "platform_fee_percent", value: String(platformFeePercent) });
+  }
+
+  res.json({ platformFeePercent, message: "Platform fee updated successfully" });
+});
+
+router.post("/admin/products/:purchaseRef/refund", requireAuth(), async (req: Request, res: Response): Promise<void> => {
+  const { userId: clerkId } = getAuth(req);
+  if (!clerkId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.clerkId, clerkId));
+  if (!profile?.isAdmin) { res.status(403).json({ error: "Forbidden" }); return; }
+
+  const { purchaseRef } = req.params as { purchaseRef: string };
+
+  const [purchase] = await db
+    .select()
+    .from(productPurchasesTable)
+    .where(eq(productPurchasesTable.reference, purchaseRef));
+
+  if (!purchase) { res.status(404).json({ error: "Purchase not found" }); return; }
+  if (purchase.status === "refunded") { res.status(400).json({ error: "Already refunded" }); return; }
+
+  const [tx] = await db
+    .select()
+    .from(transactionsTable)
+    .where(eq(transactionsTable.reference, purchaseRef));
+
+  if (tx) {
+    const creatorEarnings = Number(tx.amount);
+    const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, tx.userId));
+    if (wallet) {
+      const deduct = Math.min(creatorEarnings, Number(wallet.balance));
+      await db.update(walletsTable).set({
+        balance: sql`${walletsTable.balance} - ${deduct}`,
+        totalEarned: sql`GREATEST(0, ${walletsTable.totalEarned} - ${creatorEarnings})`,
+      }).where(eq(walletsTable.id, wallet.id));
+    }
+
+    const refundRef = `REFUND-PROD-${purchaseRef}-${Date.now()}`;
+    await db.insert(transactionsTable).values({
+      userId: tx.userId,
+      type: "withdrawal",
+      amount: String(creatorEarnings),
+      currency: "NGN",
+      description: `Refund for product purchase (ref: ${purchaseRef})`,
+      reference: refundRef,
+      status: "completed",
+      metadata: JSON.stringify({ source: "product_refund", originalRef: purchaseRef }),
+    });
+
+    await db.update(productPurchasesTable).set({
+      status: "refunded",
+      refundedAt: new Date(),
+      refundReference: refundRef,
+    }).where(eq(productPurchasesTable.id, purchase.id));
+
+    if (purchase.buyerEmail) {
+      await sendRefundConfirmation({
+        buyerEmail: purchase.buyerEmail,
+        buyerName: purchase.buyerName ?? "Customer",
+        amountNgn: Number(purchase.amount),
+        reference: purchaseRef,
+      });
+    }
+  }
+
+  res.json({ success: true, message: "Refund processed" });
+});
+
+// ─── Tip & Marketplace internal helpers ──────────────────────────────────────
+
+async function fulfillTip(
+  creatorId: number,
+  amountKobo: number,
+  reference: string,
+  details: { tipperName?: string; tipperEmail?: string; isAnonymous?: boolean; message?: string | null },
+) {
+  const [existing] = await db
+    .select({ id: tipsTable.id, status: tipsTable.status })
+    .from(tipsTable)
+    .where(eq(tipsTable.reference, reference));
+
+  if (existing?.status === "completed") return;
+
+  const amountNgn = amountKobo / 100;
+  const feePercent = await getPlatformFeePercent();
+  const creatorEarnings = amountNgn * (1 - feePercent / 100);
+
+  if (existing) {
+    await db.update(tipsTable).set({ status: "completed" }).where(eq(tipsTable.reference, reference));
+  } else {
+    await db.insert(tipsTable).values({
+      creatorId,
+      tipperName: details.isAnonymous ? null : (details.tipperName ?? null),
+      tipperEmail: details.isAnonymous ? null : (details.tipperEmail ?? null),
+      isAnonymous: details.isAnonymous ?? false,
+      message: details.message ?? null,
+      amount: String(amountNgn),
+      currency: "NGN",
+      reference,
+      status: "completed",
+    });
+  }
+
+  const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, creatorId));
+  if (wallet) {
+    await db.update(walletsTable).set({
+      balance: sql`${walletsTable.balance} + ${creatorEarnings}`,
+      totalEarned: sql`${walletsTable.totalEarned} + ${creatorEarnings}`,
+    }).where(eq(walletsTable.id, wallet.id));
+  } else {
+    await db.insert(walletsTable).values({
+      userId: creatorId,
+      balance: String(creatorEarnings),
+      totalEarned: String(creatorEarnings),
+      totalWithdrawn: "0.00",
+      currency: "NGN",
+    });
+  }
+
+  const displayName = details.isAnonymous ? "Anonymous" : (details.tipperName ?? "Anonymous");
+  await db.insert(transactionsTable).values({
+    userId: creatorId,
+    type: "earning",
+    amount: String(creatorEarnings),
+    currency: "NGN",
+    description: `Tip from ${displayName}${details.message ? `: "${details.message.slice(0, 50)}"` : ""}`,
+    reference,
+    status: "completed",
+    metadata: JSON.stringify({ source: "tip", tipperName: displayName, message: details.message }),
+  });
+
+  await db.insert(notificationsTable).values({
+    userId: creatorId,
+    type: "tip",
+    title: "💸 New tip received!",
+    message: `${displayName} sent you ₦${creatorEarnings.toLocaleString("en-NG", { maximumFractionDigits: 2 })}${details.message ? ` with a message: "${details.message.slice(0, 80)}"` : ""}`,
+    data: JSON.stringify({ reference, tipperName: displayName, amount: creatorEarnings }),
+  });
+
+  const [creator] = await db.select().from(profilesTable).where(eq(profilesTable.id, creatorId));
+  if (creator?.email) {
+    await sendTipReceivedNotification({
+      creatorEmail: creator.email,
+      creatorName: creator.name ?? "Creator",
+      tipperName: displayName,
+      amountNgn: creatorEarnings,
+      message: details.message ?? null,
+    });
+  }
+}
+
+async function fulfillMarketplaceOrder(
+  listingId: number,
+  sellerId: number,
+  amountKobo: number,
+  reference: string,
+  details: { buyerEmail: string; buyerName?: string; message?: string | null; requirements?: string | null },
+) {
+  const [existing] = await db
+    .select({ id: marketplaceOrdersTable.id, status: marketplaceOrdersTable.status })
+    .from(marketplaceOrdersTable)
+    .where(eq(marketplaceOrdersTable.reference, reference));
+
+  if (existing?.status === "paid" || existing?.status === "completed") return;
+
+  const amountNgn = amountKobo / 100;
+  const feePercent = await getPlatformFeePercent();
+  const sellerEarnings = amountNgn * (1 - feePercent / 100);
+
+  const [listing] = await db.select().from(marketplaceListingsTable).where(eq(marketplaceListingsTable.id, listingId));
+
+  if (existing) {
+    await db.update(marketplaceOrdersTable).set({ status: "paid" }).where(eq(marketplaceOrdersTable.reference, reference));
+  } else {
+    await db.insert(marketplaceOrdersTable).values({
+      listingId,
+      sellerId,
+      buyerEmail: details.buyerEmail,
+      buyerName: details.buyerName ?? null,
+      amount: String(amountNgn),
+      currency: "NGN",
+      reference,
+      status: "paid",
+      message: details.message ?? null,
+      requirements: details.requirements ?? null,
+      deliveryDays: (listing as any)?.deliveryDays ?? null,
+    });
+  }
+
+  const [wallet] = await db.select().from(walletsTable).where(eq(walletsTable.userId, sellerId));
+  if (wallet) {
+    await db.update(walletsTable).set({
+      balance: sql`${walletsTable.balance} + ${sellerEarnings}`,
+      totalEarned: sql`${walletsTable.totalEarned} + ${sellerEarnings}`,
+    }).where(eq(walletsTable.id, wallet.id));
+  } else {
+    await db.insert(walletsTable).values({
+      userId: sellerId,
+      balance: String(sellerEarnings),
+      totalEarned: String(sellerEarnings),
+      totalWithdrawn: "0.00",
+      currency: "NGN",
+    });
+  }
+
+  await db.insert(transactionsTable).values({
+    userId: sellerId,
+    type: "earning",
+    amount: String(sellerEarnings),
+    currency: "NGN",
+    description: `Marketplace order: ${listing?.title ?? "Service"} (after ${feePercent}% fee)`,
+    reference,
+    status: "completed",
+    metadata: JSON.stringify({ source: "marketplace_order", listingId, buyerEmail: details.buyerEmail }),
+  });
+
+  await db.insert(notificationsTable).values({
+    userId: sellerId,
+    type: "order",
+    title: "📦 New marketplace order!",
+    message: `${details.buyerName ?? "A client"} placed an order for "${listing?.title ?? "your service"}" — ₦${sellerEarnings.toLocaleString("en-NG", { maximumFractionDigits: 2 })} earned.`,
+    data: JSON.stringify({ listingId, reference, buyerEmail: details.buyerEmail, amount: sellerEarnings }),
+  });
+
+  const [seller] = await db.select().from(profilesTable).where(eq(profilesTable.id, sellerId));
+  if (seller?.email) {
+    await sendMarketplaceOrderNotification({
+      sellerEmail: seller.email,
+      sellerName: seller.name ?? "Creator",
+      listingTitle: listing?.title ?? "Service",
+      buyerName: details.buyerName ?? "Client",
+      buyerEmail: details.buyerEmail,
+      amountNgn: sellerEarnings,
+      requirements: details.requirements ?? null,
       reference,
     });
   }

@@ -28,6 +28,10 @@ import adminExtendedRouter from "./admin-extended";
 import bookingsRouter from "./bookings";
 import searchRouter from "./search";
 import verificationsRouter from "./verifications";
+import tipsRouter from "./tips";
+import revenueRouter from "./revenue";
+import creatorSubscriptionsRouter from "./creator-subscriptions";
+import marketplaceOrdersRouter from "./marketplace-orders";
 
 const router: IRouter = Router();
 
@@ -60,5 +64,9 @@ router.use(adminExtendedRouter);
 router.use(bookingsRouter);
 router.use(searchRouter);
 router.use(verificationsRouter);
+router.use(tipsRouter);
+router.use(revenueRouter);
+router.use(creatorSubscriptionsRouter);
+router.use(marketplaceOrdersRouter);
 
 export default router;
