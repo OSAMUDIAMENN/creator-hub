@@ -1,1 +1,1 @@
-Live Campaign Updates component
+Live Campaign Updates
