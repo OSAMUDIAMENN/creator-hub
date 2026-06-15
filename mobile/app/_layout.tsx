@@ -1,1 +1,1 @@
-Root layout with notifications
+Root layout with notification handling

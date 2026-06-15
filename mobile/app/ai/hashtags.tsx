@@ -1,1 +1,1 @@
-Hashtag Generator screen
+Hashtag Generator screen (updated)
