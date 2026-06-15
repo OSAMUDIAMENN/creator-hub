@@ -1,1 +1,1 @@
-Mobile Social Feed + Stories
+Feed with real-time WebSocket
