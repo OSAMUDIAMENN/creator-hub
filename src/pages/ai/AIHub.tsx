@@ -1,1 +1,1 @@
-Updated AI Hub with Text-to-Video and Image-to-Video
+Updated AI Hub with better video notes
