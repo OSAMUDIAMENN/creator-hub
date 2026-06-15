@@ -1,1 +1,1 @@
-Full production wiring guide for multi-step onboarding wizard.
+Onboarding wizard wiring guide

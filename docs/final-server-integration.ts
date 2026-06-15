@@ -1,1 +1,1 @@
-Complete server integration example for all phases.
+Final server integration example
