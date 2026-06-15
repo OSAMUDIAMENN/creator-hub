@@ -1,1 +1,1 @@
-Home screen with Real-time Activity
+Polished Home screen with animations
