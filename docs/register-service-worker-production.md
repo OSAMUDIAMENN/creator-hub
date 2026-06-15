@@ -1,0 +1,1 @@
+How to register service worker in main frontend bundle.
