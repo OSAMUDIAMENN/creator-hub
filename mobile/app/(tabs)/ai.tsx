@@ -1,0 +1,1 @@
+AI Hub screen for mobile
