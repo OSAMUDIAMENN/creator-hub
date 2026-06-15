@@ -1,1 +1,1 @@
-Real-time earnings component using WebSocket
+Live Earnings component with WebSocket

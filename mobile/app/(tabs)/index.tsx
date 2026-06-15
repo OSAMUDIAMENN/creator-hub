@@ -1,1 +1,1 @@
-Home screen
+Home screen with Live Earnings
