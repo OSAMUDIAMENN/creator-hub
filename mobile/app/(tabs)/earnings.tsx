@@ -1,0 +1,1 @@
+Earnings screen with ad revenue
