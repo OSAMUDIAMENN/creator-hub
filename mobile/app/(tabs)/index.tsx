@@ -1,1 +1,1 @@
-Home screen with Live Earnings
+Home screen with Live Campaign Updates
