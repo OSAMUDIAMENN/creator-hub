@@ -1,1 +1,1 @@
-Root layout with Clerk and React Query
+Root layout with notifications
