@@ -1,0 +1,1 @@
+Full server integration example for all phases
