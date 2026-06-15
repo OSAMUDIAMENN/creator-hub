@@ -1,1 +1,1 @@
-Discover / Feed screen
+Improved Feed/Discover screen
