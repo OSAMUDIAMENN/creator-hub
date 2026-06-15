@@ -1,1 +1,1 @@
-AI Thumbnail Generator React component.
+AI Thumbnail Generator component.
