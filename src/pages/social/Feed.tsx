@@ -1,1 +1,1 @@
-Social Feed page
+Feed with Stories
