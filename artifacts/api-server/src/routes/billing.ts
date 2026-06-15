@@ -1,1 +1,1 @@
-Billing and wallet top-up system
+Enhanced Billing with Paystack-style integration
