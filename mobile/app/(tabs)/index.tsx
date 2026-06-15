@@ -1,1 +1,1 @@
-Home screen with Live Campaign Updates
+Home screen with Real-time Activity
