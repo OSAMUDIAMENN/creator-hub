@@ -1,1 +1,1 @@
-Added automated ad revenue sharing job
+Improved automated revenue sharing job

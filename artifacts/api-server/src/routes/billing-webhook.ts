@@ -1,1 +1,1 @@
-Billing webhook handler for Paystack top-ups
+Billing webhook that actually credits wallet
