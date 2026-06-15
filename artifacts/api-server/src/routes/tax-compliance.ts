@@ -1,1 +1,1 @@
-Full tax compliance route with earnings summary and CSV report download.
+Tax earnings summary and downloadable CSV report.
