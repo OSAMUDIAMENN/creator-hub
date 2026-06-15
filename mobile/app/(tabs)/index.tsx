@@ -1,1 +1,1 @@
-Polished Home with animations
+Polished with animations

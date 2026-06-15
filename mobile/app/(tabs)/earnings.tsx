@@ -1,1 +1,1 @@
-Earnings screen with ad revenue
+Polished Earnings with fade animation
