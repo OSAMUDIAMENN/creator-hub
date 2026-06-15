@@ -1,1 +1,1 @@
-Feed with Stories
+Feed with collaboration tagging
