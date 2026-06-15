@@ -1,0 +1,1 @@
+Recommended mobile app structure
