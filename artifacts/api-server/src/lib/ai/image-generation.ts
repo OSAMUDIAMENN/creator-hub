@@ -1,1 +1,1 @@
-Deeper AI image generation integration helper.
+AI image generation helper
