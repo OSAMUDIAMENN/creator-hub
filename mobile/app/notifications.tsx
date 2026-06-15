@@ -1,1 +1,1 @@
-Notifications center
+Polished Notifications with animation

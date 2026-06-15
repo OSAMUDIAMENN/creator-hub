@@ -1,1 +1,1 @@
-Profile screen with sign out
+Polished Profile with animation
