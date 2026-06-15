@@ -1,1 +1,1 @@
-Campaigns List screen
+Campaigns List

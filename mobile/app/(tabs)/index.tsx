@@ -1,1 +1,1 @@
-Polished Home screen with animations
+Polished Home with animations
