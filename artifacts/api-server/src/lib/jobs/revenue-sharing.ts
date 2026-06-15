@@ -1,0 +1,1 @@
+Functional automated revenue sharing logic

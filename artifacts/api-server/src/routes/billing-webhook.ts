@@ -1,1 +1,1 @@
-Billing webhook that actually credits wallet
+Billing webhook
