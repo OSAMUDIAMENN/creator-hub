@@ -1,1 +1,1 @@
-Mobile Notifications
+Notifications with real-time WebSocket

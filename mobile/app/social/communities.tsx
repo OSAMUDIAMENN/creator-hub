@@ -1,1 +1,1 @@
-Mobile Communities
+Communities with real-time WebSocket
