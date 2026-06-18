@@ -1,1 +1,1 @@
-Modern ProductCard component
+Added lazy loading to ProductCard
