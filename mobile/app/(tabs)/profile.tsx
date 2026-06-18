@@ -1,1 +1,1 @@
-Improved mobile Profile styling
+Profile page mobile polish
