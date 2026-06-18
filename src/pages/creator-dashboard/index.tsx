@@ -1,1 +1,1 @@
-Improved Creator Dashboard with StatsCard
+Added accessibility to Dashboard
