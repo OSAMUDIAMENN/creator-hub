@@ -1,1 +1,1 @@
-Polished Profile with animation
+Improved mobile Profile styling
