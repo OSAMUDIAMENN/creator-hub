@@ -1,1 +1,1 @@
-Improved Marketplace page with search and filters
+Further Marketplace UI improvements

@@ -1,1 +1,1 @@
-Added caching structure comments
+Implemented Redis caching in feed
