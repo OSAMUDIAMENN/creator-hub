@@ -1,1 +1,1 @@
-Feed with real-time WebSocket
+Improved mobile Feed UX

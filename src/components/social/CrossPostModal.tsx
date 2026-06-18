@@ -1,1 +1,1 @@
-Cross-post modal component
+Improved CrossPostModal UX
