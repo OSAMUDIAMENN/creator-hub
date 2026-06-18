@@ -1,1 +1,1 @@
-Added cross-posting routes
+Added caching structure comments
