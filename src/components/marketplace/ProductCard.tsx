@@ -1,1 +1,1 @@
-Added lazy loading to ProductCard
+Integrated OptimizedImage component

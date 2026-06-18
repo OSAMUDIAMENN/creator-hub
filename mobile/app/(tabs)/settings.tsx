@@ -1,1 +1,1 @@
-Settings screen
+Improved mobile Settings UX
