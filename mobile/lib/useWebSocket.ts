@@ -1,1 +1,1 @@
-WebSocket hook for real-time features
+Strengthened WebSocket auth
