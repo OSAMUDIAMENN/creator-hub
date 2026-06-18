@@ -1,0 +1,1 @@
+Comprehensive project structure for easy navigation by other agents
