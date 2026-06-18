@@ -1,1 +1,1 @@
-UI polish on Feed
+Premium UI polish on Feed
