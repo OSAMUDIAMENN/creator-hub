@@ -1,1 +1,1 @@
-Root layout with notification handling
+Integrated Bottom Nav + FAB

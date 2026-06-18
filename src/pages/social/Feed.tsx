@@ -1,1 +1,1 @@
-Feed with collaboration tagging
+UI polish on Feed
