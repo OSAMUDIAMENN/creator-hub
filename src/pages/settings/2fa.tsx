@@ -1,1 +1,1 @@
-2FA Settings page
+Improved 2FA settings UI
