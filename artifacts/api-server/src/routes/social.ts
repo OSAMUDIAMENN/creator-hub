@@ -1,1 +1,1 @@
-Implemented Redis caching in feed
+Added Redis caching to more endpoints
