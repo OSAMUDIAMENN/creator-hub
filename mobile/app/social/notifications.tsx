@@ -1,1 +1,1 @@
-Notifications with real-time WebSocket
+Improved mobile Notifications UX + accessibility

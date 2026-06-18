@@ -1,1 +1,1 @@
-Connected accounts settings page
+Improved Cross-Posting connected accounts UX
