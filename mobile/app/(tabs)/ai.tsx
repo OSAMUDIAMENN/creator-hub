@@ -1,1 +1,1 @@
-AI Hub screen for mobile
+Improved mobile AI Hub UX + accessibility

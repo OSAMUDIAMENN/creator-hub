@@ -1,0 +1,1 @@
+OptimizedImage component for performance
