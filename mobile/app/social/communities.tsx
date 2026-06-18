@@ -1,1 +1,1 @@
-Communities with real-time WebSocket
+Improved mobile Communities UX
