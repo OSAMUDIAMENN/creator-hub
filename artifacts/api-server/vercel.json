@@ -1,0 +1,7 @@
+{
+  "framework": "express",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
+  "installCommand": "pnpm install --filter @workspace/api-server...",
+  "devCommand": "pnpm run dev"
+}
