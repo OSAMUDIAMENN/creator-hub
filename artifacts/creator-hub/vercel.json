@@ -1,0 +1,7 @@
+{
+  "framework": "vite",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist",
+  "installCommand": "pnpm install --filter @workspace/creator-hub...",
+  "devCommand": "pnpm run dev"
+}
